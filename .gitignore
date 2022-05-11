@@ -1,0 +1,5 @@
+venv1/*
+.ipynb_checkpoints/*
+.git
+.idea
+__pycache__
