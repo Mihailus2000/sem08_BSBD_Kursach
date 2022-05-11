@@ -2,7 +2,7 @@
 # import pandas as pd
 # from sqlalchemy import create_engine
 # import pymysql
-from turtledemo import paint
+# from turtledemo import paint
 
 import pyodbc
 import sys
@@ -60,8 +60,96 @@ class dialogWinNewRoute(QDialog):
         self.push = QLabel("TEST")
         loadUi("dialogAddNewRoute.ui", self)
         self.show()
-        # self.setupUi(self)
+        self.all_stations = []
+        self.add_station_btn.clicked.connect(self.addStationToRoute)
+        self.del_station_btn.clicked.connect(self.delStationFromRoute)
+        self.all_stationsBox.activated.connect(self.chooseStation)
+        self.time_setter.timeChanged.connect(self.chooseT0)
+        self.delay_setter.valueChanged.connect(self.delayChanged)
+        self.day_of_week.activated.connect(self.choose_dow)
+        self.sum_of_route_tbl.setColumnCount(4)
+        self.sum_of_route_tbl.setHorizontalHeaderLabels(["Станция","Отправление","Стоянка","День недели"])
+        self.routeData = {"route_num": None, "train_name": None,
+                          "stations": list()}
 
+        self.available_stations_id = {}
+        self.getDBInfo()
+        self.new_station = [self.all_stationsBox.currentText(),
+                            self.all_stationsBox.currentData()]
+        self.new_start_time = [int(self.time_setter.time().toString("HH")),int(self.time_setter.time().toString("mm"))]
+        self.new_st_delay = self.delay_setter.value()
+        self.new_dow = self.day_of_week.currentIndex()
+
+
+    def getDBInfo(self):
+        query = """SELECT stations.station_id, stations.station_name FROM
+                stations ORDER BY station_name"""
+        stations = cursor.execute(query).fetchall()
+        # all_stations = []
+        print(stations)
+        for st_id, st_name in stations:
+            self.available_stations_id[st_name] = st_id
+            self.all_stationsBox.addItem(st_name, userData=st_id)
+            # all_stations.append(st_name)
+        ########
+
+    def choose_dow(self, index):
+        self.new_dow = index
+        print("Day Of week : {}".format(index))
+
+
+    def delayChanged(self, value):
+        self.new_st_delay = value
+        print("value : {}".format(value))
+
+
+    def chooseT0(self, cur_time):
+        self.new_start_time = [int(cur_time.toString("HH")),int(cur_time.toString("mm"))]
+        print("time : {}".format(self.new_start_time))
+
+    def chooseStation(self, index):
+        name = self.all_stationsBox.currentText()
+        id = self.all_stationsBox.currentData()
+        self.new_station = [name,id]
+        print("[{}] : {}, {}".format(index,self.all_stationsBox.currentText(),self.all_stationsBox.currentData()))
+
+    def addStationToRoute(self):
+        self.all_stations.append([self.new_station, self.new_start_time, self.new_st_delay, self.new_dow])
+        print("ADter INSERTION: {}".format(self.all_stations))
+        self.sum_of_route_tbl.insertRow(self.sum_of_route_tbl.rowCount())
+        station = QTableWidgetItem(self.new_station[0])
+        time0 = QTableWidgetItem("{}:{}".format(self.new_start_time[0], self.new_start_time[1]))
+        delay = QTableWidgetItem(str(self.new_st_delay))
+        dow = QTableWidgetItem(str(self.new_dow))
+
+        ##########
+        station.setFlags((station.flags() | QtCore.Qt.CustomizeWindowHint) &
+                    ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount()-1,0,station)
+        ##########
+        time0.setFlags((time0.flags() | QtCore.Qt.CustomizeWindowHint) &
+                    ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount()-1,1,time0)
+        ##########
+        delay.setFlags((delay.flags() | QtCore.Qt.CustomizeWindowHint) &
+                    ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount()-1,2,delay)
+        ##########
+        dow.setFlags((dow.flags() | QtCore.Qt.CustomizeWindowHint) &
+                    ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount()-1,3,dow)
+        ##########
+
+
+    def delStationFromRoute(self):
+        if self.sum_of_route_tbl.rowCount() == 0:
+            print("Can't delete ROW from empty table!")
+            return
+        row = self.sum_of_route_tbl.currentRow()
+        print("Will be deleted {} row.\n".format(row))
+        self.sum_of_route_tbl.removeRow(row)
+        self.all_stations.pop(row)
+        print("After delition: {}".format(self.all_stations))
 
 
 class Window(QWidget):
@@ -98,7 +186,7 @@ class Window(QWidget):
     def apply_routesDB_changes(self):
         for rt_id, changed_field in self.items_to_update:
             rtDB_update_query = """UPDATE routes SET train_name = ? WHERE route_id = ?"""
-            cursor.execute(rtDB_update_query,changed_field,int(rt_id))
+            cursor.execute(rtDB_update_query, changed_field, int(rt_id))
         self.items_to_update.clear()
         cursor.commit()
         self.routes_DB.blockSignals(True)
@@ -108,19 +196,18 @@ class Window(QWidget):
     def add_new_route(self):
         # self.dialog_window_addnewRoute = QDialog()
         self.ui = dialogWinNewRoute(self)
-        x, y = QInputDialog.getText(self, 'input','entername')
         self.ui.setModal(True)
-        self.ui.show()
-        self.ui.open()
+        # self.ui.show()
         self.ui.exec()
-
 
         # TODO
 
     def route_managment(self):
         index = self.stackedWidget.indexOf(self.page)
         self.stackedWidget.setCurrentIndex(index)
-        self.routes_DB.setHorizontalHeaderLabels(["ID","№ мар-та","Название","Отправляется из","Время отправления","Прибывает на","Время прибытия"])
+        self.routes_DB.setColumnCount(7)
+        self.routes_DB.setHorizontalHeaderLabels(
+            ["ID", "№ мар-та", "Название", "Отправляется из", "Время отправления", "Прибывает на", "Время прибытия"])
 
         #####################################
         # load all routes from DB
@@ -151,7 +238,8 @@ class Window(QWidget):
             stations = []
             for (d_o_w, sort_order, st_name, ar_time, delay) in route_stations:
                 stations.append([st_name, d_o_w, sort_order, ar_time, delay])
-                print("\t[{}] : {{num:{}, dow:{}, {}, {} min}}".format(sort_order, st_name, d_o_w, ar_time, delay))  # TODO: DEBUG
+                print("\t[{}] : {{num:{}, dow:{}, {}, {} min}}".format(sort_order, st_name, d_o_w, ar_time,
+                                                                       delay))  # TODO: DEBUG
             routes_stations[r_id] = stations
             print("\t-------------")
 
@@ -159,11 +247,13 @@ class Window(QWidget):
         for num, route_id in enumerate(routes_dict.keys()):
             ######
             rt_id = QTableWidgetItem(str(route_id))
-            rt_id.setFlags((rt_id.flags() | QtCore.Qt.CustomizeWindowHint) & ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+            rt_id.setFlags((rt_id.flags() | QtCore.Qt.CustomizeWindowHint) &
+                           ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
             self.routes_DB.setItem(num, 0, rt_id)
             ######
             rt_number = QTableWidgetItem(routes_dict[route_id][1])
-            rt_number.setFlags((rt_number.flags() | QtCore.Qt.CustomizeWindowHint) & ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+            rt_number.setFlags((rt_number.flags() | QtCore.Qt.CustomizeWindowHint) &
+                               ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
             self.routes_DB.setItem(num, 1, rt_number)
             ######
             rt_name = QTableWidgetItem(routes_dict[route_id][0])
@@ -172,19 +262,23 @@ class Window(QWidget):
             self.routes_DB.setItem(num, 2, rt_name)
             ######
             start_station = QTableWidgetItem(routes_stations[route_id][0][0])
-            start_station.setFlags((start_station.flags() | QtCore.Qt.CustomizeWindowHint) & ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+            start_station.setFlags((start_station.flags() | QtCore.Qt.CustomizeWindowHint) &
+                                   ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
             self.routes_DB.setItem(num, 3, start_station)
             ######
             start_time = QTableWidgetItem(routes_stations[route_id][0][3])
-            start_time.setFlags((start_time.flags() | QtCore.Qt.CustomizeWindowHint) & ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+            start_time.setFlags((start_time.flags() | QtCore.Qt.CustomizeWindowHint) &
+                                ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
             self.routes_DB.setItem(num, 4, start_time)
             ######
             end_station = QTableWidgetItem(routes_stations[route_id][-1][0])
-            end_station.setFlags((end_station.flags() | QtCore.Qt.CustomizeWindowHint) & ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+            end_station.setFlags((end_station.flags() | QtCore.Qt.CustomizeWindowHint) &
+                                 ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
             self.routes_DB.setItem(num, 5, end_station)
             ######
             end_time = QTableWidgetItem(routes_stations[route_id][-1][3])
-            end_time.setFlags((end_time.flags() | QtCore.Qt.CustomizeWindowHint) & ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+            end_time.setFlags((end_time.flags() | QtCore.Qt.CustomizeWindowHint) &
+                              ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
             self.routes_DB.setItem(num, 6, end_time)
             ######
         self.routes_DB.itemChanged.connect(self.changedTableItem)
@@ -192,7 +286,6 @@ class Window(QWidget):
         self.routes_DB.itemSelectionChanged.connect(self.changedTableSelectedItem)
         self.is_doubleClicked = False
         self.is_changedItem = False
-
 
         # TODO : ADD MOOOOORRRREEE
 
@@ -207,9 +300,9 @@ class Window(QWidget):
         row = item.row()
         col = item.column()
         item.tableWidget().blockSignals(True)
-        el = item.setBackground (QtGui.QBrush(QtGui.QColor("#f00")))
+        el = item.setBackground(QtGui.QBrush(QtGui.QColor("#f00")))
         item.tableWidget().blockSignals(False)
-        self.items_to_update.append([self.routes_DB.item(row,0).text(),item.text()])
+        self.items_to_update.append([self.routes_DB.item(row, 0).text(), item.text()])
         # print(self.changedValue)
         self.is_changedItem = True
 
@@ -221,11 +314,12 @@ class Window(QWidget):
 
     def changedTableSelectedItem(self):
         if self.is_doubleClicked and self.is_changedItem:
-            print("was: {}\nnow: {}".format(self.start_value,self.changedValue))
+            print("was: {}\nnow: {}".format(self.start_value, self.changedValue))
             # self.items_to_update.insert([])
             # upd_query = """UPDATE """
         self.is_changedItem = False
         self.is_doubleClicked = False
+
 
 if __name__ == "__main__":
     ########################################

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>591</width>
-    <height>456</height>
+    <width>484</width>
+    <height>482</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,174 +15,425 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
+    <widget class="QWidget" name="widget_11" native="true">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>50</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>50</height>
+      </size>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_9">
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="font">
+         <font>
+          <pointsize>14</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Введите данные нового маршрута</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_9">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>387</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QWidget" name="widget" native="true">
-     <widget class="QLabel" name="label_4">
-      <property name="geometry">
-       <rect>
-        <x>70</x>
-        <y>370</y>
-        <width>101</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Время отправления</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_3">
-      <property name="geometry">
-       <rect>
-        <x>50</x>
-        <y>90</y>
-        <width>91</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Название поезда</string>
-      </property>
-     </widget>
-     <widget class="QComboBox" name="comboBox">
-      <property name="geometry">
-       <rect>
-        <x>160</x>
-        <y>140</y>
-        <width>91</width>
-        <height>21</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QTimeEdit" name="timeEdit">
-      <property name="geometry">
-       <rect>
-        <x>180</x>
-        <y>360</y>
-        <width>118</width>
-        <height>22</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QTableWidget" name="tableWidget">
-      <property name="geometry">
-       <rect>
-        <x>60</x>
-        <y>180</y>
-        <width>471</width>
-        <height>161</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_5">
-      <property name="geometry">
-       <rect>
-        <x>50</x>
-        <y>130</y>
-        <width>101</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Добавьте станции:</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_2">
-      <property name="geometry">
-       <rect>
-        <x>50</x>
-        <y>60</y>
-        <width>91</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Номер маршрута</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label">
-      <property name="geometry">
-       <rect>
-        <x>50</x>
-        <y>20</y>
-        <width>341</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>14</pointsize>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-      <property name="text">
-       <string>Введите данные нового маршрута</string>
-      </property>
-     </widget>
-     <widget class="QDialogButtonBox" name="buttonBox">
-      <property name="geometry">
-       <rect>
-        <x>120</x>
-        <y>400</y>
-        <width>411</width>
-        <height>32</height>
-       </rect>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-      <property name="standardButtons">
-       <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-      </property>
-     </widget>
-     <widget class="QLineEdit" name="lineEdit_3">
-      <property name="geometry">
-       <rect>
-        <x>150</x>
-        <y>100</y>
-        <width>91</width>
-        <height>20</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QLineEdit" name="lineEdit">
-      <property name="geometry">
-       <rect>
-        <x>150</x>
-        <y>66</y>
-        <width>113</width>
-        <height>20</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="pushButton">
-      <property name="geometry">
-       <rect>
-        <x>270</x>
-        <y>130</y>
-        <width>121</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Добавить станцию</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="pushButton_2">
-      <property name="geometry">
-       <rect>
-        <x>410</x>
-        <y>130</y>
-        <width>121</width>
-        <height>31</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Удалить станцию</string>
-      </property>
-     </widget>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="0" column="0">
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <item>
+           <widget class="QLabel" name="label_2">
+            <property name="text">
+             <string>Номер маршрута</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="route_num"/>
+          </item>
+         </layout>
+        </item>
+        <item row="0" column="1" rowspan="2">
+         <layout class="QHBoxLayout" name="horizontalLayout_6">
+          <item>
+           <widget class="QPushButton" name="add_station_btn">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>122</width>
+              <height>69</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Добавить станцию</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="del_station_btn">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>122</width>
+              <height>69</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Удалить станцию</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="1" column="0">
+         <layout class="QHBoxLayout" name="horizontalLayout_8">
+          <item>
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>Название поезда</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="train_name"/>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_5">
+        <property name="font">
+         <font>
+          <pointsize>10</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Добавьте станции:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="0" column="0">
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QLabel" name="label_7">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Название:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="all_stationsBox">
+            <property name="minimumSize">
+             <size>
+              <width>130</width>
+              <height>25</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="0" column="2">
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QLabel" name="label_9">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Стоянка:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="delay_setter"/>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_11">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>минут</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="1" column="2">
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <item>
+           <widget class="QLabel" name="label_10">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>90</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>День недели:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="day_of_week">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>90</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>9999999</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <item>
+             <property name="text">
+              <string>Понедельник</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Вторник</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Среда</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Четверг</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Пятница</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Суббота</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Воскресенье</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="1" column="0">
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item alignment="Qt::AlignLeft">
+           <widget class="QLabel" name="label_8">
+            <property name="maximumSize">
+             <size>
+              <width>100</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Отправление:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTimeEdit" name="time_setter">
+            <property name="minimumSize">
+             <size>
+              <width>30</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>70</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <family>Arial</family>
+              <pointsize>12</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="wrapping">
+             <bool>false</bool>
+            </property>
+            <property name="currentSection">
+             <enum>QDateTimeEdit::HourSection</enum>
+            </property>
+            <property name="calendarPopup">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item row="1" column="1">
+         <spacer name="horizontalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QTableWidget" name="sum_of_route_tbl">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
     </widget>
    </item>
   </layout>
+  <zorder>widget</zorder>
+  <zorder>buttonBox</zorder>
+  <zorder>route_num</zorder>
+  <zorder>all_stationsBox</zorder>
+  <zorder>label_3</zorder>
+  <zorder>del_station_btn</zorder>
+  <zorder>train_name</zorder>
+  <zorder>label_2</zorder>
+  <zorder>add_station_btn</zorder>
+  <zorder>label_7</zorder>
+  <zorder>layoutWidget</zorder>
+  <zorder>layoutWidget_2</zorder>
+  <zorder>layoutWidget_3</zorder>
+  <zorder>widget_11</zorder>
  </widget>
  <resources/>
  <connections/>

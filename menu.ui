@@ -372,43 +372,7 @@ border-radius:20</string>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_8">
          <item>
-          <widget class="QTableWidget" name="routes_DB">
-           <column>
-            <property name="text">
-             <string>Дата</string>
-            </property>
-           </column>
-           <column>
-            <property name="text">
-             <string>Время отправления</string>
-            </property>
-           </column>
-           <column>
-            <property name="text">
-             <string>Время прибытия</string>
-            </property>
-           </column>
-           <column>
-            <property name="text">
-             <string>№ маршрута</string>
-            </property>
-           </column>
-           <column>
-            <property name="text">
-             <string>Название</string>
-            </property>
-           </column>
-           <column>
-            <property name="text">
-             <string>Отправляется из</string>
-            </property>
-           </column>
-           <column>
-            <property name="text">
-             <string>Прибывает на</string>
-            </property>
-           </column>
-          </widget>
+          <widget class="QTableWidget" name="routes_DB"/>
          </item>
          <item>
           <layout class="QVBoxLayout" name="verticalLayout_4">
