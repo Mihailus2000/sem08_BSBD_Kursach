@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Dialog</class>
- <widget class="QDialog" name="Dialog">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>573</width>
-    <height>628</height>
+    <height>616</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Form</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -45,7 +45,7 @@
          </font>
         </property>
         <property name="text">
-         <string>Введите данные нового маршрута</string>
+         <string>Редактирование маршрута</string>
         </property>
        </widget>
       </item>
@@ -100,8 +100,17 @@
               <height>69</height>
              </size>
             </property>
+            <property name="font">
+             <font>
+              <kerning>false</kerning>
+             </font>
+            </property>
             <property name="text">
-             <string>Добавить маршрут</string>
+             <string>Обновить
+название/номер</string>
+            </property>
+            <property name="checkable">
+             <bool>false</bool>
             </property>
            </widget>
           </item>
@@ -497,8 +506,6 @@
     </widget>
    </item>
   </layout>
-  <zorder>widget</zorder>
-  <zorder>widget_11</zorder>
  </widget>
  <resources/>
  <connections/>
