@@ -3,18 +3,26 @@
 # from sqlalchemy import create_engine
 # import pymysql
 # from turtledemo import paint
+from copy import copy
 
 import pyodbc
 import sys
+import os
+
+from PyQt5.QtCore import Qt, QTime
+from bitarray import bitarray
+
+from dialogAddNewRoute import Ui_Dialog
 
 # from console_commands import *
 
 from PyQt5.QtWidgets import QWidget, QApplication, QStackedWidget, QPushButton, QTableWidget, QTableWidgetItem, \
-    QStyledItemDelegate, QDialog, QLabel, QMainWindow, QInputDialog
+    QStyledItemDelegate, QDialog, QLabel, QMainWindow, QInputDialog, QMessageBox, QComboBox, QCheckBox, \
+    QAbstractScrollArea
 # import PyQt5.QtGui
-from PyQt5.uic import loadUi
+from PyQt5.uic import loadUi, pyuic
 from PyQt5 import QtCore, QtGui
-
+# from CheckableCombobox import CheckableComboBox
 
 def connectToDB(driver, ser_name, db_name, username, passwd):
     return pyodbc.connect("""DRIVER={};
@@ -53,11 +61,57 @@ USR_LOGIN = None
 #
 #     display_all_tables(db_connection, all_tables_list, cursor)
 #     simple_parser(all_tables_list, db_connection, cursor)
+
+
+
+class MyCheckBox(QCheckBox):
+    def __init__( self, *args ):
+        super(MyCheckBox, self).__init__(*args) # will fail if passing **kwargs
+        self._readOnly = False
+
+    def isReadOnly( self ):
+        return self._readOnly
+
+    def mousePressEvent( self, event ):
+        if (self.isReadOnly() ):
+            event.accept()
+        else:
+            super(MyCheckBox, self).mousePressEvent(event)
+
+    def mouseMoveEvent( self, event ):
+        if ( self.isReadOnly() ):
+            event.accept()
+        else:
+            super(MyCheckBox, self).mouseMoveEvent(event)
+
+    def mouseReleaseEvent( self, event ):
+        if ( self.isReadOnly() ):
+            event.accept()
+        else:
+            super(MyCheckBox, self).mouseReleaseEvent(event)
+
+
+    # Handle event in which the widget has focus and the spacebar is pressed.
+    def keyPressEvent( self, event ):
+        if ( self.isReadOnly() ):
+            event.accept()
+        else:
+            super(MyCheckBox, self).keyPressEvent(event)
+
+    @QtCore.pyqtSlot(bool)
+    def setReadOnly( self, state ):
+        self._readOnly = state
+    readOnly = QtCore.pyqtProperty(bool, isReadOnly, setReadOnly)
+
 class dialogWinNewRoute(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.new_tt_id = None
         self.setParent(parent)
-        self.push = QLabel("TEST")
+        # self.ui = Ui_Dialog()
+        # self.ui.setupUi(self)
+
+        # self.push = QLabel("TEST")
         loadUi("dialogAddNewRoute.ui", self)
         self.show()
         self.all_stations = []
@@ -66,20 +120,53 @@ class dialogWinNewRoute(QDialog):
         self.all_stationsBox.activated.connect(self.chooseStation)
         self.time_setter.timeChanged.connect(self.chooseT0)
         self.delay_setter.valueChanged.connect(self.delayChanged)
-        self.day_of_week.activated.connect(self.choose_dow)
-        self.sum_of_route_tbl.setColumnCount(4)
-        self.sum_of_route_tbl.setHorizontalHeaderLabels(["Станция","Отправление","Стоянка","День недели"])
+
+        # self.day_of_weeks_choose.activated.connect(self.choose_dow)
+
+        self.add_route_btn.clicked.connect(self.insert_route_toDB)
+        self.route_num_input.editingFinished.connect(self.update_route_num)
+        self.train_name_input.editingFinished.connect(self.update_train_name)
+        self.sum_of_route_tbl.setColumnCount(10)
+        self.sum_of_route_tbl.setHorizontalHeaderLabels(["Станция", "Отправление", "Стоянка", "П","Вт","Ср","Чт","Пт","Сб","Вс"])
+        self.sum_of_route_tbl.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
+        self.sum_of_route_tbl.resizeColumnsToContents()
         self.routeData = {"route_num": None, "train_name": None,
                           "stations": list()}
-
         self.available_stations_id = {}
         self.getDBInfo()
         self.new_station = [self.all_stationsBox.currentText(),
                             self.all_stationsBox.currentData()]
-        self.new_start_time = [int(self.time_setter.time().toString("HH")),int(self.time_setter.time().toString("mm"))]
+        self.new_start_time = [int(self.time_setter.time().toString("HH")), int(self.time_setter.time().toString("mm"))]
         self.new_st_delay = self.delay_setter.value()
-        self.new_dow = self.day_of_week.currentIndex()
+        self.route_is_added = False
+        self.stations_menu.setEnabled(False)
+        self.add_station_btn.setEnabled(False)
+        self.del_station_btn.setEnabled(False)
+        self.route_id = None
 
+        day_of_weeks = ["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье"]
+        for i, dow in enumerate(day_of_weeks):
+            self.day_of_weeks_choose.addItem(dow)
+            self.day_of_weeks_choose.setItemChecked(i,False)
+        self.reset_station_menu()
+        self.new_dow_arr = self.day_of_weeks_choose.getBooleanArray()
+        self.station_cnt = 1
+
+    def reset_station_menu(self):
+        self.all_stationsBox.clearEditText()
+        self.time_setter.setTime(QTime(0,0))
+        self.delay_setter.setValue(0)
+        self.day_of_weeks_choose.resetBox()
+
+    def update_route_num(self):
+        print("WAS: {}".format(self.routeData["route_num"]))
+        self.routeData["route_num"] = self.route_num_input.text()
+        print("NOW: {}".format(self.routeData["route_num"]))
+
+    def update_train_name(self):
+        print("WAS: {}".format(self.routeData["train_name"]))
+        self.routeData["train_name"] = self.train_name_input.text()
+        print("WAS: {}".format(self.routeData["train_name"]))
 
     def getDBInfo(self):
         query = """SELECT stations.station_id, stations.station_name FROM
@@ -93,61 +180,138 @@ class dialogWinNewRoute(QDialog):
             # all_stations.append(st_name)
         ########
 
-    def choose_dow(self, index):
-        self.new_dow = index
-        print("Day Of week : {}".format(index))
-
+    # def choose_dow(self, index):
+    #     self.new_dow = index
+    #     print("Day Of week : {}".format(index))
 
     def delayChanged(self, value):
         self.new_st_delay = value
         print("value : {}".format(value))
 
-
     def chooseT0(self, cur_time):
-        self.new_start_time = [int(cur_time.toString("HH")),int(cur_time.toString("mm"))]
+        self.new_start_time = [int(cur_time.toString("HH")), int(cur_time.toString("mm"))]
         print("time : {}".format(self.new_start_time))
 
     def chooseStation(self, index):
         name = self.all_stationsBox.currentText()
         id = self.all_stationsBox.currentData()
-        self.new_station = [name,id]
-        print("[{}] : {}, {}".format(index,self.all_stationsBox.currentText(),self.all_stationsBox.currentData()))
+        self.new_station = [name, id]
+        print("[{}] : {}, {}".format(index, self.all_stationsBox.currentText(), self.all_stationsBox.currentData()))
+
+    def insert_route_toDB(self):
+        if self.routeData["route_num"] is not None and self.routeData["route_num"] is not None:
+            query0 = """SELECT COUNT(route_id) FROM routes WHERE number = ? """
+            cnt = cursor.execute(query0, self.routeData["route_num"]).fetchall()[0][0]
+            if cnt != 0:
+                msg = QMessageBox.warning(self, "Can't add that route!", "The same route already exists!\n"
+                                                                         "Change the information.")
+                return
+            query = """INSERT INTO routes (train_name,number) VALUES (?,?)"""
+            cursor.execute(query, self.routeData["train_name"], self.routeData["route_num"])
+            cursor.commit()
+            query2 = """SELECT route_id FROM routes WHERE train_name = ? AND number = ?"""
+            self.route_id = int(
+                cursor.execute(query2, self.routeData["train_name"], self.routeData["route_num"]).fetchone()[0])
+
+            self.add_route_btn.setEnabled(False)
+            self.stations_menu.setEnabled(True)
+            self.add_station_btn.setEnabled(True)
+            self.del_station_btn.setEnabled(True)
 
     def addStationToRoute(self):
-        self.all_stations.append([self.new_station, self.new_start_time, self.new_st_delay, self.new_dow])
-        print("ADter INSERTION: {}".format(self.all_stations))
+        ##########
+        self.new_dow_arr = self.day_of_weeks_choose.getBooleanArray()
+        self.all_stations.append([self.new_station, self.new_start_time, self.new_st_delay, self.new_dow_arr])
+        print("After INSERTION: {}".format(self.all_stations))
         self.sum_of_route_tbl.insertRow(self.sum_of_route_tbl.rowCount())
         station = QTableWidgetItem(self.new_station[0])
         time0 = QTableWidgetItem("{}:{}".format(self.new_start_time[0], self.new_start_time[1]))
         delay = QTableWidgetItem(str(self.new_st_delay))
-        dow = QTableWidgetItem(str(self.new_dow))
+        days_of_week_where_add = self.new_dow_arr
+        # days_of_week_where_add_tbl = ""
+        # aa = ["22","21"]
+
+        # for day in days_of_week_where_add:
+        #     if day:
+        #         days_of_week_where_add_tbl += '1'
+        #     else:
+        #         days_of_week_where_add_tbl += '0'
+        days_of_week_where_add_tbl =  QTableWidgetItem("{}".format(days_of_week_where_add))
 
         ##########
         station.setFlags((station.flags() | QtCore.Qt.CustomizeWindowHint) &
-                    ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
-        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount()-1,0,station)
+                         ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 0, station)
         ##########
         time0.setFlags((time0.flags() | QtCore.Qt.CustomizeWindowHint) &
-                    ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
-        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount()-1,1,time0)
+                       ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 1, time0)
         ##########
         delay.setFlags((delay.flags() | QtCore.Qt.CustomizeWindowHint) &
-                    ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
-        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount()-1,2,delay)
-        ##########
-        dow.setFlags((dow.flags() | QtCore.Qt.CustomizeWindowHint) &
-                    ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
-        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount()-1,3,dow)
+                       ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 2, delay)
         ##########
 
+        # unreacheable_checkbox = QCheckBox()
+        self.sum_of_route_tbl.setEditTriggers(QTableWidget.NoEditTriggers)
+        days_cbs = []
+        for day in days_of_week_where_add:
+            cb = MyCheckBox()
+            cb.setReadOnly(True)
+            if day:
+                cb.setChecked(True)
+            else:
+                cb.setChecked(False)
+            # cb.setStyleSheet("pointer-events: none")
+            days_cbs.append(cb)
+
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 3, days_cbs[0])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 4, days_cbs[1])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 5, days_cbs[2])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 6, days_cbs[3])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 7, days_cbs[4])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 8, days_cbs[5])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 9, days_cbs[6])
+        self.sum_of_route_tbl.resizeColumnsToContents()
+
+        # for i in range(7):
+        #     item = self.sum_of_route_tbl.item(self.sum_of_route_tbl.rowCount() - 1,3+i)
+        #     item.setFlags((item.flags() | QtCore.Qt.CustomizeWindowHint) &
+        #                ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+
+        # chkBoxItem.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+        # days_of_week_where_add_tbl.setFlags((days_of_week_where_add_tbl.flags() | QtCore.Qt.CustomizeWindowHint) &
+        #              ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        # self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 3, days_of_week_where_add_tbl)
+        ##########
+        ##########
+        # Update DB7
+        query1 = """INSERT INTO timetable (route_id, sort_order, station_id, arrival_time, delay)
+                    VALUES (?,?,?,TIME(?),?)""" #TODO ДОДЕЛАТЬ! При удалении нужно менять sort_order!!
+        cursor.execute(query1, self.route_id, self.station_cnt,  self.new_station[1], "{}".format(time0.text()), self.new_st_delay)
+        cursor.commit()
+        query2 = """SELECT id FROM timetable WHERE route_id = ? AND station_id = ?"""
+        self.new_tt_id = cursor.execute(query2,self.route_id,self.new_station[1]).fetchone()[0]
+
+        query3 = """INSERT INTO timetable_of_days (timetable_id, day_of_week) 
+                    VALUES (?,?)"""
+        for index,is_day_inserted in enumerate(days_of_week_where_add):
+            if is_day_inserted:
+                cursor.execute(query3,self.new_tt_id,index)
+                cursor.commit()
+        self.reset_station_menu()
 
     def delStationFromRoute(self):
         if self.sum_of_route_tbl.rowCount() == 0:
-            print("Can't delete ROW from empty table!")
+            msg = QMessageBox.warning(self, "Deletion", "Can't delete ROW from empty table!")
             return
         row = self.sum_of_route_tbl.currentRow()
         print("Will be deleted {} row.\n".format(row))
         self.sum_of_route_tbl.removeRow(row)
+
+        # TODO: Change counts in DB:
+        query = """SELECT id FROM timetable_of_days WHERE """
+
         self.all_stations.pop(row)
         print("After delition: {}".format(self.all_stations))
 
@@ -162,11 +326,15 @@ class Window(QWidget):
         self.buy_tickets_menu_btn.clicked.connect(self.start_buying)
         self.apply_rt_changes_btn.clicked.connect(self.apply_routesDB_changes)
         self.add_routes_btn.clicked.connect(self.add_new_route)
+        self.update_routesForm.clicked.connect(self.update_routes_form)
         self.start_value = None
         self.changedValue = None
         self.is_doubleClicked = False
         self.is_changedItem = False
         self.items_to_update = []
+
+    def update_routes_form(self):
+        self.route_managment()
 
     def start_authorization(self):
         index = self.stackedWidget.indexOf(self.authorization_page)
@@ -214,8 +382,8 @@ class Window(QWidget):
         #####################################
         query1 = """SELECT routes.route_id, train_name, routes.number
                     FROM routes
-                    JOIN timetable on routes.route_id = timetable.route_id
-                    JOIN stations s on timetable.station_id = s.station_id
+                    LEFT JOIN timetable on routes.route_id = timetable.route_id
+                    LEFT JOIN stations s on timetable.station_id = s.station_id
                     GROUP BY routes.route_id;"""
         all_routes = cursor.execute(query1).fetchall()
         routes_dict = {}
@@ -226,7 +394,7 @@ class Window(QWidget):
             print("\t[{}] : {{{},{}}}".format(r_id, name, number))  # TODO: DEBUG
 
         routes_stations = {}
-        query2 = """SELECT timetable.day_of_week, timetable.sort_order, stations.station_name, 
+        query2 = """SELECT timetable.sort_order, stations.station_name, 
                     TIME_FORMAT(timetable.arrival_time, '%H:%i'), timetable.delay
                     FROM timetable JOIN stations
                     ON timetable.station_id = stations.station_id
@@ -236,9 +404,12 @@ class Window(QWidget):
         for r_id in routes_dict.keys():
             route_stations = cursor.execute(query2, r_id).fetchall()
             stations = []
-            for (d_o_w, sort_order, st_name, ar_time, delay) in route_stations:
-                stations.append([st_name, d_o_w, sort_order, ar_time, delay])
-                print("\t[{}] : {{num:{}, dow:{}, {}, {} min}}".format(sort_order, st_name, d_o_w, ar_time,
+            if len(route_stations) == 0:
+                stations.append([None, None, None, None])
+                print("\tNO STATION in {}!".format(r_id))
+            for (sort_order, st_name, ar_time, delay) in route_stations:
+                stations.append([st_name, sort_order, ar_time, delay])
+                print("\t[{}] : {{num:{}, {}, {} min}}".format(sort_order, st_name, ar_time,
                                                                        delay))  # TODO: DEBUG
             routes_stations[r_id] = stations
             print("\t-------------")
@@ -266,7 +437,7 @@ class Window(QWidget):
                                    ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
             self.routes_DB.setItem(num, 3, start_station)
             ######
-            start_time = QTableWidgetItem(routes_stations[route_id][0][3])
+            start_time = QTableWidgetItem(routes_stations[route_id][0][2])
             start_time.setFlags((start_time.flags() | QtCore.Qt.CustomizeWindowHint) &
                                 ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
             self.routes_DB.setItem(num, 4, start_time)
@@ -276,7 +447,7 @@ class Window(QWidget):
                                  ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
             self.routes_DB.setItem(num, 5, end_station)
             ######
-            end_time = QTableWidgetItem(routes_stations[route_id][-1][3])
+            end_time = QTableWidgetItem(routes_stations[route_id][-1][2])
             end_time.setFlags((end_time.flags() | QtCore.Qt.CustomizeWindowHint) &
                               ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
             self.routes_DB.setItem(num, 6, end_time)
@@ -322,6 +493,7 @@ class Window(QWidget):
 
 
 if __name__ == "__main__":
+    # os.system('python -m PyQt5.uic.pyuic -x [FILENAME].ui -o [FILENAME].py')
     ########################################
     # Initialize connection to DB
     ##########################################
@@ -335,6 +507,14 @@ if __name__ == "__main__":
     new_conn = connectToDB(driver, server_name, database, username, passwd)
     cursor = new_conn.cursor()
 
+    # q = """SELECT day_of_week FROM timetable LIMIT 1"""
+    # data = cursor.execute(q).fetchone()[0]
+    # print(data)
+
+    # query = """INSERT INTO timetable (route_id,sort_order, station_id, arrival_time, delay)
+    #             VALUES (?,?, TIME(?), ?)"""
+    # cursor.execute(query,15,11,10,'10:22',23)
+    # cursor.commit()
     ############################################
     # Start QT Applocation
     #############################################

@@ -377,6 +377,13 @@ border-radius:20</string>
          <item>
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
+            <widget class="QPushButton" name="update_routesForm">
+             <property name="text">
+              <string>Обновить таблицу</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QPushButton" name="apply_rt_changes_btn">
              <property name="text">
               <string>Подтвердить изменения</string>
