@@ -18,7 +18,7 @@ from dialogAddNewRoute import Ui_Dialog
 
 from PyQt5.QtWidgets import QWidget, QApplication, QStackedWidget, QPushButton, QTableWidget, QTableWidgetItem, \
     QStyledItemDelegate, QDialog, QLabel, QMainWindow, QInputDialog, QMessageBox, QComboBox, QCheckBox, \
-    QAbstractScrollArea
+    QAbstractScrollArea, QDialogButtonBox, QVBoxLayout
 # import PyQt5.QtGui
 from PyQt5.uic import loadUi, pyuic
 from PyQt5 import QtCore, QtGui
@@ -106,6 +106,8 @@ class MyCheckBox(QCheckBox):
 class dialogWinNewRoute(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.route_is_added = False
+        self.days = None
         self.new_tt_id = None
         # self.setParent(parent)
         # self.ui = Ui_Dialog()
@@ -120,15 +122,25 @@ class dialogWinNewRoute(QDialog):
         self.all_stationsBox.activated.connect(self.chooseStation)
         self.time_setter.timeChanged.connect(self.chooseT0)
         self.delay_setter.valueChanged.connect(self.delayChanged)
-        self.exitButton.clicked.connect(self.closeWindow)   # TODO: May be canselling of all actions!
+        self.save_changes_btn.clicked.connect(self.save_changes)
+        self.cancel_changes_btn.clicked.connect(self.reject_all_changes)
+
+        self.monday_checkBox.stateChanged.connect(self.checkboxes_changed)
+        self.tuesday_checkBox.stateChanged.connect(self.checkboxes_changed)
+        self.wednesday_checkBox.stateChanged.connect(self.checkboxes_changed)
+        self.thirsday_checkBox.stateChanged.connect(self.checkboxes_changed)
+        self.friday_checkBox.stateChanged.connect(self.checkboxes_changed)
+        self.saturday_checkBox.stateChanged.connect(self.checkboxes_changed)
+        self.sunday_checkBox.stateChanged.connect(self.checkboxes_changed)
+
 
         # self.day_of_weeks_choose.activated.connect(self.choose_dow)
 
         self.add_route_btn.clicked.connect(self.insert_route_toDB)
         self.route_num_input.editingFinished.connect(self.update_route_num)
         self.train_name_input.editingFinished.connect(self.update_train_name)
-        self.sum_of_route_tbl.setColumnCount(10)
-        self.sum_of_route_tbl.setHorizontalHeaderLabels(["Станция", "Отправление", "Стоянка", "П","Вт","Ср","Чт","Пт","Сб","Вс"])
+        self.sum_of_route_tbl.setColumnCount(11)
+        self.sum_of_route_tbl.setHorizontalHeaderLabels(["id","Станция", "Отправление", "Стоянка", "П","Вт","Ср","Чт","Пт","Сб","Вс"])
         self.sum_of_route_tbl.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
         self.sum_of_route_tbl.resizeColumnsToContents()
         self.routeData = {"route_num": None, "train_name": None,
@@ -152,9 +164,70 @@ class dialogWinNewRoute(QDialog):
         self.reset_station_menu()
         # self.new_dow_arr = self.day_of_weeks_choose.getBooleanArray()
         self.station_cnt = 1
+        self.just_close = False
 
-    def closeWindow(self):
-        q_mess_box = QMessageBox.question(self, "Route insertion procedure", "Save all or Cancel?")
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        if self.just_close:
+            event.accept()
+        else:
+            if self.route_is_added:
+                self.reject_all_changes()
+            else:
+                event.accept()
+
+    def checkboxes_changed(self):
+        self.days = [
+            self.monday_checkBox.isChecked(),
+            self.tuesday_checkBox.isChecked(),
+            self.wednesday_checkBox.isChecked(),
+            self.thirsday_checkBox.isChecked(),
+            self.friday_checkBox.isChecked(),
+            self.saturday_checkBox.isChecked(),
+            self.sunday_checkBox.isChecked()
+        ]
+        if True not in self.days:
+            self.add_station_btn.setEnabled(False)
+        else:
+            self.add_station_btn.setEnabled(True)
+
+    def reject_all_changes(self):
+        if not self.route_is_added:
+            self.just_close = True
+            self.close()
+            return
+        q_mess_box = QMessageBox.question(self, "Route insertion procedure", "Are you sure to cancel all changes?")
+        if q_mess_box:
+            try:
+                route_id = self.route_id
+                query1 = """DELETE timetable_of_days
+                                            FROM timetable_of_days
+                                            JOIN timetable ON timetable_of_days.timetable_id = timetable.id
+                                            WHERE route_id = ?"""
+                cursor.execute(query1, route_id)
+                query2 = """DELETE FROM timetable WHERE route_id = ?"""
+                cursor.execute(query2, route_id)
+                query3 = """DELETE FROM routes
+                                            WHERE route_id = ?"""
+                cursor.execute(query3, route_id)
+            except pyodbc.Error as exc:
+                QMessageBox.critical(self, "Cancelling failed!",
+                                     "Can't delete route because of:\n{}".format(exc.args))
+            cursor.commit()
+            QMessageBox.information(self, "Route insertion procedure", "All changes were successfully Cancelled!")
+            self.parentWindow.update_routes_form()
+            self.just_close = True
+            self.close()
+            return
+        else:
+            self.save_changes()
+
+
+    def save_changes(self):
+        self.just_close = True
+        if not self.route_is_added:
+            self.close()
+            return
+        QMessageBox.information(self, "Route insertion procedure", "All changes were Saved!")
         self.parentWindow.update_routes_form()
         self.close()
 
@@ -169,6 +242,7 @@ class dialogWinNewRoute(QDialog):
         self.friday_checkBox.setChecked(False),
         self.saturday_checkBox.setChecked(False),
         self.sunday_checkBox.setChecked(False)
+        self.add_station_btn.setEnabled(False)
 
     def update_route_num(self):
         print("WAS: {}".format(self.routeData["route_num"]))
@@ -218,27 +292,45 @@ class dialogWinNewRoute(QDialog):
                 msg = QMessageBox.warning(self, "Can't add that route!", "The same route already exists!\n"
                                                                          "Change the information.")
                 return
-            query = """INSERT INTO routes (train_name,number) VALUES (?,?)"""
-            cursor.execute(query, self.routeData["train_name"], self.routeData["route_num"])
-            cursor.commit()
+            try:
+                query = """INSERT INTO routes (train_name,number) VALUES (?,?)"""
+                cursor.execute(query, self.routeData["train_name"], self.routeData["route_num"])
+            except pyodbc.Error as exc:
+                cursor.rollback()
+                QMessageBox.critical(self, "Insertion failed!",
+                                     "Can't insert route because of:\n{}".format(exc.args))
+                return
             query2 = """SELECT route_id FROM routes WHERE train_name = ? AND number = ?"""
             self.route_id = int(
                 cursor.execute(query2, self.routeData["train_name"], self.routeData["route_num"]).fetchone()[0])
-
+            self.route_is_added = True
             self.add_route_btn.setEnabled(False)
             self.stations_menu.setEnabled(True)
-            self.add_station_btn.setEnabled(True)
+            self.add_station_btn.setEnabled(False)
             self.del_station_btn.setEnabled(True)
 
     def addStationToRoute(self):
         ##########
         # self.new_dow_arr = self.day_of_weeks_choose.getBooleanArray()
-        # self.all_stations.append([self.new_station, self.new_start_time, self.new_st_delay, self.new_dow_arr])
+        self.all_stations.append([self.new_station, self.new_start_time, self.new_st_delay, self.days])
         print("After INSERTION: {}".format(self.all_stations))
         self.sum_of_route_tbl.insertRow(self.sum_of_route_tbl.rowCount())
         station = QTableWidgetItem(self.new_station[0])
         time0 = QTableWidgetItem("{}:{}".format(self.new_start_time[0], self.new_start_time[1]))
         delay = QTableWidgetItem(str(self.new_st_delay))
+        # days = [
+        #     self.monday_checkBox.isChecked(),
+        #     self.tuesday_checkBox.isChecked(),
+        #     self.wednesday_checkBox.isChecked(),
+        #     self.thirsday_checkBox.isChecked(),
+        #     self.friday_checkBox.isChecked(),
+        #     self.saturday_checkBox.isChecked(),
+        #     self.sunday_checkBox.isChecked()
+        # ]
+        # if True not in days:
+        #     QMessageBox.warning(self, "Station insertion", "Can't delete ROW from empty table!")
+
+
         # days_of_week_where_add = self.new_dow_arr
         # days_of_week_where_add_tbl = ""
         # aa = ["22","21"]
@@ -250,33 +342,12 @@ class dialogWinNewRoute(QDialog):
         #         days_of_week_where_add_tbl += '0'
         # days_of_week_where_add_tbl =  QTableWidgetItem("{}".format(days_of_week_where_add))
 
-        ##########
-        station.setFlags((station.flags() | QtCore.Qt.CustomizeWindowHint) &
-                         ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
-        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 0, station)
-        ##########
-        time0.setFlags((time0.flags() | QtCore.Qt.CustomizeWindowHint) &
-                       ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
-        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 1, time0)
-        ##########
-        delay.setFlags((delay.flags() | QtCore.Qt.CustomizeWindowHint) &
-                       ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
-        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 2, delay)
-        ##########
 
         # unreacheable_checkbox = QCheckBox()
         # self.sum_of_route_tbl.setEditTriggers(QTableWidget.NoEditTriggers)
-        days = [
-            self.monday_checkBox.isChecked(),
-            self.tuesday_checkBox.isChecked(),
-            self.wednesday_checkBox.isChecked(),
-            self.thirsday_checkBox.isChecked(),
-            self.friday_checkBox.isChecked(),
-            self.saturday_checkBox.isChecked(),
-            self.sunday_checkBox.isChecked()
-        ]
+
         days_cbs = []
-        for day in days:
+        for day in self.days:
             cb = MyCheckBox()
             cb.setReadOnly(True)
             if day:
@@ -286,14 +357,6 @@ class dialogWinNewRoute(QDialog):
             # cb.setStyleSheet("pointer-events: none")
             days_cbs.append(cb)
 
-        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 3, days_cbs[0])
-        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 4, days_cbs[1])
-        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 5, days_cbs[2])
-        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 6, days_cbs[3])
-        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 7, days_cbs[4])
-        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 8, days_cbs[5])
-        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 9, days_cbs[6])
-        self.sum_of_route_tbl.resizeColumnsToContents()
 
         # for i in range(7):
         #     item = self.sum_of_route_tbl.item(self.sum_of_route_tbl.rowCount() - 1,3+i)
@@ -307,19 +370,60 @@ class dialogWinNewRoute(QDialog):
         ##########
         ##########
         # Update DB7
-        query1 = """INSERT INTO timetable (route_id, sort_order, station_id, arrival_time, delay)
-                    VALUES (?,?,?,TIME(?),?)""" #TODO ДОДЕЛАТЬ! При удалении нужно менять sort_order!!
-        cursor.execute(query1, self.route_id, self.station_cnt,  self.new_station[1], "{}".format(time0.text()), self.new_st_delay)
-        cursor.commit()
-        query2 = """SELECT id FROM timetable WHERE route_id = ? AND station_id = ?"""
-        self.new_tt_id = cursor.execute(query2,self.route_id,self.new_station[1]).fetchone()[0]
+        try:
+            query1 = """INSERT INTO timetable (route_id, sort_order, station_id, arrival_time, delay)
+                                VALUES (?,?,?,TIME(?),?)"""  # TODO ДОДЕЛАТЬ! При удалении нужно менять sort_order!!
+            cursor.execute(query1, self.route_id, self.station_cnt, self.new_station[1], "{}".format(time0.text()),
+                           self.new_st_delay)
+            cursor.commit()
+            query2 = """SELECT id FROM timetable WHERE route_id = ? AND sort_order = ? AND station_id = ?
+                        AND arrival_time = ? AND delay = ?"""
+            self.new_tt_id = cursor.execute(query2, self.route_id, self.station_cnt, self.new_station[1],
+                                            "{}".format(time0.text()), self.new_st_delay).fetchall()[-1][0]
 
-        query3 = """INSERT INTO timetable_of_days (timetable_id, day_of_week) 
-                    VALUES (?,?)"""
-        for index,is_day_inserted in enumerate(days):
-            if is_day_inserted:
-                cursor.execute(query3,self.new_tt_id,index)
-                cursor.commit()
+            query3 = """INSERT INTO timetable_of_days (timetable_id, day_of_week) 
+                                VALUES (?,?)"""
+            for index, is_day_inserted in enumerate(self.days):
+                if is_day_inserted:
+                    cursor.execute(query3, self.new_tt_id, index)
+
+        except pyodbc.Error as exc:
+            cursor.rollback()
+            QMessageBox.critical(self, "Insertion failed!",
+                                 "Exception raised because of:\n{}".format(exc.args))
+            return
+        cursor.commit()
+
+        id_in_tbl = QTableWidgetItem(str(self.new_tt_id))
+        id_in_tbl.setFlags((id_in_tbl.flags() | QtCore.Qt.CustomizeWindowHint) &
+                         ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 0, id_in_tbl)
+        ##########
+        station.setFlags((station.flags() | QtCore.Qt.CustomizeWindowHint) &
+                         ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 1, station)
+        ##########
+        station.setFlags((station.flags() | QtCore.Qt.CustomizeWindowHint) &
+                         ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 1, station)
+        ##########
+        time0.setFlags((time0.flags() | QtCore.Qt.CustomizeWindowHint) &
+                       ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 2, time0)
+        ##########
+        delay.setFlags((delay.flags() | QtCore.Qt.CustomizeWindowHint) &
+                       ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsSelectable)
+        self.sum_of_route_tbl.setItem(self.sum_of_route_tbl.rowCount() - 1, 3, delay)
+        ##########
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 4, days_cbs[0])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 5, days_cbs[1])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 6, days_cbs[2])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 7, days_cbs[3])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 8, days_cbs[4])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 9, days_cbs[5])
+        self.sum_of_route_tbl.setCellWidget(self.sum_of_route_tbl.rowCount() - 1, 10, days_cbs[6])
+        self.sum_of_route_tbl.resizeColumnsToContents()
+
         self.reset_station_menu()
 
     def delStationFromRoute(self):
@@ -327,14 +431,48 @@ class dialogWinNewRoute(QDialog):
             msg = QMessageBox.warning(self, "Deletion", "Can't delete ROW from empty table!")
             return
         row = self.sum_of_route_tbl.currentRow()
-        print("Will be deleted {} row.\n".format(row))
-        self.sum_of_route_tbl.removeRow(row)
+        id = int(self.sum_of_route_tbl.item(row,0).text())
+        print("Will be deleted {} row. Id = {}\n".format(row, id))
 
         # TODO: Change counts in DB:
-        query = """SELECT id FROM timetable_of_days WHERE timetable_id = ?"""
-
+        try:
+            query1 = """DELETE timetable_of_days
+                        FROM timetable_of_days
+                        WHERE timetable_id = ?"""
+            cursor.execute(query1, id)
+            query2 = """DELETE FROM timetable WHERE id = ?"""
+            cursor.execute(query2, id)
+        except pyodbc.Error as exc:
+            cursor.rollback()
+            QMessageBox.critical(self, "Cancelling failed!",
+                                 "Can't delete route because of:\n{}\n"
+                                 "All actions were canceled!".format(exc.args))
+        cursor.commit()
+        self.sum_of_route_tbl.removeRow(row)
         self.all_stations.pop(row)
         print("After delition: {}".format(self.all_stations))
+
+class CustomDialog(QDialog):
+    def __init__(self, parent=None, records=0):
+        super().__init__(parent)
+        self.setWindowTitle("Удаление маршрута(ов)")
+        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        self.layout = QVBoxLayout()
+        self.message = QLabel("Вы уверены, что хотите удалить {} записей из Расписания?".format(records))
+        self.layout.addWidget(self.message)
+        self.layout.addWidget(self.buttonBox)
+        self.setLayout(self.layout)
+
+    # def reject(self) -> None:
+    #     self.hide()
+
+    def changeTo(self,new_text):
+        self.message.setText(new_text)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Ok)
+        self.exec_()
 
 
 class Window(QWidget):
@@ -343,6 +481,7 @@ class Window(QWidget):
         loadUi("menu.ui", self)
         self.stackedWidget.setCurrentIndex(1)
         self.authorization_menu_btn.clicked.connect(self.start_authorization)
+        self.delRoutebtn.clicked.connect(self.del_selected_route)
         self.registration_menu_btn.clicked.connect(self.start_registration)
         self.buy_tickets_menu_btn.clicked.connect(self.start_buying)
         self.apply_rt_changes_btn.clicked.connect(self.apply_routesDB_changes)
@@ -355,6 +494,45 @@ class Window(QWidget):
         self.items_to_update = []
         self.apply_rt_changes_btn.setEnabled(False)
 
+
+    def del_selected_route(self):
+        selected_items = self.routes_DB.selectedItems()
+        if len(selected_items) == 0:
+            QMessageBox.warning(self, "Deletion", "You don't select anything to delete!")
+            return
+        selected_rows = set()
+        for item in selected_items:
+            selected_rows.add(item.row())
+        all_records = 0
+        all_route_ids = []
+        for row in selected_rows:
+            route_id = int(self.routes_DB.item(row,0).text())
+            query0 = """SELECT COUNT(timetable_of_days.id) FROM timetable_of_days
+                        JOIN timetable ON timetable_of_days.timetable_id = timetable.id
+                        WHERE route_id = ?"""
+            all_records += cursor.execute(query0,route_id).fetchone()[0]
+            all_route_ids.append(route_id)
+        msg = CustomDialog(self,all_records)
+        if msg.exec_():
+            try:
+                for route_id in all_route_ids:
+                    query1 = """DELETE timetable_of_days
+                                FROM timetable_of_days
+                                JOIN timetable ON timetable_of_days.timetable_id = timetable.id
+                                WHERE route_id = ?"""
+                    cursor.execute(query1, route_id)
+                    query2 = """DELETE FROM timetable WHERE route_id = ?"""
+                    cursor.execute(query2, route_id)
+                    query3 = """DELETE FROM routes
+                                WHERE route_id = ?"""
+                    cursor.execute(query3, route_id)
+            except pyodbc.Error as exc:
+                QMessageBox.critical(self,"Deletion failed!","Can't delete route because of:\n{}".format(exc.args))
+            msg.changeTo("Всё OK! Записи успешно были удалены.")
+            cursor.commit()
+            self.update_routes_form()
+        else:
+            msg.changeTo("OK! Записи не были удалены.")
 
     def update_routes_form(self):
         self.routes_DB.blockSignals(True)
@@ -403,6 +581,7 @@ class Window(QWidget):
         # TODO
 
     def route_managment(self):
+        self.routes_DB.clearContents()
         index = self.stackedWidget.indexOf(self.page)
         self.stackedWidget.setCurrentIndex(index)
         self.routes_DB.setColumnCount(7)

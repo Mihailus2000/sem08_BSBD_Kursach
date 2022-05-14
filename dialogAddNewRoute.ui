@@ -477,16 +477,23 @@
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>423</width>
+             <width>342</width>
              <height>20</height>
             </size>
            </property>
           </spacer>
          </item>
          <item>
-          <widget class="QPushButton" name="exitButton">
+          <widget class="QPushButton" name="save_changes_btn">
            <property name="text">
-            <string>Выход</string>
+            <string>Сохранить</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="cancel_changes_btn">
+           <property name="text">
+            <string>Отмена</string>
            </property>
           </widget>
          </item>
