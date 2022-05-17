@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>913</width>
-    <height>597</height>
+    <width>802</width>
+    <height>605</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -47,7 +47,7 @@
       <string notr="true"/>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>3</number>
      </property>
      <widget class="QWidget" name="main_page">
       <property name="styleSheet">
@@ -141,14 +141,52 @@ background-color: qlineargradient(spread:pad, x1:1, y1:0.982591, x2:0, y2:0, sto
        </item>
        <item>
         <widget class="QWidget" name="widget_6" native="true">
-         <layout class="QVBoxLayout" name="verticalLayout_5">
+         <layout class="QGridLayout" name="gridLayout">
           <property name="sizeConstraint">
            <enum>QLayout::SetDefaultConstraint</enum>
           </property>
-          <item alignment="Qt::AlignHCenter">
-           <widget class="QPushButton" name="authorization_menu_btn">
+          <item row="0" column="1">
+           <widget class="QPushButton" name="edit_routes_menu_btn">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>220</width>
+              <height>60</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>200</width>
+              <height>60</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <family>Arial</family>
+              <pointsize>18</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: rgb(170, 255, 255);
+border-radius:20</string>
+            </property>
+            <property name="text">
+             <string>Редактирование
+маршрутов</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QPushButton" name="buy_tickets_menu_btn">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -161,7 +199,7 @@ background-color: qlineargradient(spread:pad, x1:1, y1:0.982591, x2:0, y2:0, sto
             </property>
             <property name="maximumSize">
              <size>
-              <width>200</width>
+              <width>400</width>
               <height>40</height>
              </size>
             </property>
@@ -178,11 +216,11 @@ background-color: qlineargradient(spread:pad, x1:1, y1:0.982591, x2:0, y2:0, sto
 border-radius:20</string>
             </property>
             <property name="text">
-             <string>Авторизация</string>
+             <string>Покупка билетов</string>
             </property>
            </widget>
           </item>
-          <item alignment="Qt::AlignHCenter">
+          <item row="1" column="0">
            <widget class="QPushButton" name="registration_menu_btn">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
@@ -219,8 +257,82 @@ border-radius:20</string>
             </property>
            </widget>
           </item>
-          <item alignment="Qt::AlignHCenter">
-           <widget class="QPushButton" name="buy_tickets_menu_btn">
+          <item row="0" column="0">
+           <widget class="QPushButton" name="authorization_menu_btn">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>220</width>
+              <height>45</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>200</width>
+              <height>40</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <family>Arial</family>
+              <pointsize>18</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: rgb(170, 255, 255);
+border-radius:20</string>
+            </property>
+            <property name="text">
+             <string>Авторизация</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QPushButton" name="registration_menu_btn_2">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>220</width>
+              <height>45</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>200</width>
+              <height>40</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <family>Arial</family>
+              <pointsize>18</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: rgb(170, 255, 255);
+border-radius:20</string>
+            </property>
+            <property name="text">
+             <string>Регистрация</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QPushButton" name="buy_tickets_menu_btn_2">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
               <horstretch>0</horstretch>
@@ -286,6 +398,25 @@ border-radius:20</string>
           </size>
          </property>
          <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <item>
+           <widget class="QPushButton" name="pushButton_3">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>25</width>
+              <height>25</height>
+             </size>
+            </property>
+           </widget>
+          </item>
           <item>
            <widget class="QLabel" name="label_29">
             <property name="minimumSize">
@@ -894,7 +1025,7 @@ border-radius:20</string>
         </layout>
        </item>
        <item>
-        <widget class="QTableWidget" name="tableWidget_3">
+        <widget class="QTableWidget" name="AllRoutesForBuy_tbl">
          <column>
           <property name="text">
            <string>№ Рейса</string>
@@ -1533,6 +1664,45 @@ border-radius:20</string>
         </item>
        </layout>
       </widget>
+      <widget class="QPushButton" name="icon_btns">
+       <property name="geometry">
+        <rect>
+         <x>510</x>
+         <y>140</y>
+         <width>91</width>
+         <height>81</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="resources.qrc">
+         <normaloff>:/icons/icons/arrow-curve-180-left.png</normaloff>:/icons/icons/arrow-curve-180-left.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>26</width>
+         <height>26</height>
+        </size>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_3">
+       <property name="geometry">
+        <rect>
+         <x>430</x>
+         <y>280</y>
+         <width>81</width>
+         <height>91</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;img src=&quot;:/icons/icons/arrow-curve-180-left.png&quot;/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="scaledContents">
+        <bool>true</bool>
+       </property>
+      </widget>
      </widget>
      <widget class="QWidget" name="routes_for_admin">
       <widget class="QWidget" name="widget_4" native="true">
@@ -1727,7 +1897,9 @@ border-radius:20</string>
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
  <connections/>
  <designerdata>
   <property name="gridDeltaX">

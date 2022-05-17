@@ -3,3 +3,5 @@ venv1/*
 .git
 .idea
 __pycache__
+icons/*
+*.qrc
