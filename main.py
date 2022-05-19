@@ -20,9 +20,9 @@ from PyQt5.uic import loadUi, pyuic
 from PyQt5 import QtCore, QtGui
 
 # from CheckableCombobox import CheckableComboBox
-import TrainsManager
-import RoutesManager
-
+from TrainsManager import *
+from RoutesManager import *
+from TimetableManager import *
 
 #
 # class EditRouteDialog(QDialog):
@@ -81,27 +81,73 @@ class EditRouteDialog(QDialog):
             self.stationsToRoute_table.setCellWidget(i, 2, remove_route_button)
             i += 1
 
-    # def add_station_to_route(self):
-    #     i = self._db_cursor.execute("""SELECT COUNT(*) FROM stations_to_routes WHERE route_id = ?"""
-    #                                 ,self._route_id).fetchone()[0]
-    #     # i = self.stationsToRoute_table.rowCount()
-    #     new_station_id = self.all_stationsBox.itemData(self.all_stationsBox.currentIndex())
-    #     self._db_cursor.execute("""INSERT INTO stations_to_routes (route_id, station_id, sort_order)
-    #                             VALUES (?,?,?)""",self._route_id, new_station_id, i+1)
-    #     self._db_cursor.commit()
-    #     self.
-    # self.stationsToRoute_table.insertRow(i-1)
-    #
-    # self.routes_table.setItem(i, 0, QTableWidgetItem(str(sort_order)))
-    # self.routes_table.setItem(i, 1, QTableWidgetItem(st_name))
-    # remove_route_button = QPushButton(text="Удалить", parent=self)
-    # remove_route_button.clicked.connect(lambda state, r_to_st_id=r_to_st_id:
-    #                                     routes_manager.delete_station_from_route(r_to_st_id))        pass
 
     #########################################
     ######################################
     ###################################
     ##############################
+
+class EditTimetableDialog(QDialog):
+    def __init__(self, db_cursor: pyodbc.Cursor, parent=None):
+        super().__init__(parent)
+        loadUi("editPassagesDialog.ui", self)
+        self._db_cursor = db_cursor
+        self.trains_comboBox.currentIndexChanged.connect(self.table_update)
+        self.routes_comboBox.currentIndexChanged.connect(self.table_update)
+
+        # self.add_station_btn.clicked.connect(lambda state, r_id=self._route_id:
+        #                                      self._routes_manager.add_station_to_route(r_id))
+
+
+    def table_update(self):
+        route_id = self.routes_comboBox.itemData(self.routes_comboBox.currentIndex())
+        train_id = self.trains_comboBox.itemData(self.trains_comboBox.currentIndex())
+
+        passages = """SELECT * FROM passages p
+                    INNER JOIN stations_to_routes str ON p.passage_first_station_to_route_id = str.id
+                    WHERE str.route_id = ? AND p.train_id = ?"""
+
+        self.passage_stations_tbl.setRowCount(0)
+        self.passage_stations_tbl.setColumnCount(3)
+        self.passage_stations_tbl.setHorizontalHeaderLabels([
+            "Станция", "Время отправления", "Стоянка"])
+        i = 0
+        for r_to_st_id, st_name, sort_order in curr_stations:
+            self.stationsToRoute_table.insertRow(i)
+            sort_order = QTableWidgetItem(str(sort_order))
+            sort_order.setFlags((sort_order.flags() | QtCore.Qt.CustomizeWindowHint) &
+                                ~QtCore.Qt.ItemIsEditable)
+            self.stationsToRoute_table.setItem(i, 0, sort_order)
+            station_name = QTableWidgetItem(st_name)
+            station_name.setFlags((station_name.flags() | QtCore.Qt.CustomizeWindowHint) &
+                                  ~QtCore.Qt.ItemIsEditable)
+            self.stationsToRoute_table.setItem(i, 1, station_name)
+            remove_route_button = QPushButton(text="Удалить", parent=self)
+            remove_route_button.clicked.connect(lambda state, data=(r_to_st_id, self._route_id):
+                                                self._routes_manager.delete_station_from_route(data))
+            self.stationsToRoute_table.setCellWidget(i, 2, remove_route_button)
+            i += 1
+
+    def fill_trains_box(self):
+        trains = self._db_cursor.execute("""SELECT id, number FROM trains t
+                                               ORDER BY number""").fetchall()
+        for train_id, train_num in trains:
+            self.trains_comboBox.addItem(train_num, userData=train_id)
+
+    def fill_routes_box(self):
+        routes = self._db_cursor.execute("""SELECT route_id, name FROM routes r
+                                               ORDER BY name""").fetchall()
+        for r_id, r_name in routes:
+            self.routes_comboBox.addItem(r_name, userData=r_id)
+
+
+
+
+    ##################################
+    ##################################
+    ##################################
+    ##################################
+    ##################################
 
 
 class MainWindowUI(QWidget):
@@ -139,6 +185,7 @@ class MainWindowUI(QWidget):
             self.main_layout.addItem(self.buttons_layout)
 
             self.apply_button.clicked.connect(self.__apply_results)
+            self.cancel_button.clicked.connect(self.__reject_results)
 
         def __apply_results(self):
             self.enter_name.setStyleSheet("background-color : #FFFFFF")
@@ -182,6 +229,7 @@ class MainWindowUI(QWidget):
             self.main_layout.addItem(self.buttons_layout)
 
             self.apply_button.clicked.connect(self.__apply_results)
+            self.cancel_button.clicked.connect(self.__reject_results)
 
         def __apply_results(self):
             self.enter_number.setStyleSheet("background-color : #FFFFFF")
@@ -207,6 +255,7 @@ class MainWindowUI(QWidget):
         # self.apply_rt_changes_btn.clicked.connect(self.apply_routesDB_changes)
         self.edit_routes_menu_btn.clicked.connect(self.open_routes_managment_page)
         self.edit_trains_menu_btn.clicked.connect(self.open_trains_managment_page)
+        self.edit_timetable_menu_btn.clicked.connect(self.open_timetable_managment_page)
 
         # self.add_routes_btn.clicked.connect(self.add_new_route)
         # self.update_routesForm.clicked.connect(self.update_routes_form)
@@ -260,7 +309,11 @@ class MainWindowUI(QWidget):
         self.stackedWidget.setCurrentIndex(index)
         self.__main_app.start_trains_managment()
 
-        pass
+    @QtCore.pyqtSlot()
+    def open_timetable_managment_page(self):
+        index = self.stackedWidget.indexOf(self.timetable_form)
+        self.stackedWidget.setCurrentIndex(index)
+        self.__main_app.start_timetable_managment()
 
     #########################################
     ######################################
@@ -311,7 +364,7 @@ class MainWindowUI(QWidget):
             new_name: str = addRoute_dialog.new_route_name
             new_number: str = addRoute_dialog.new_route_number
             try:
-                cursor.execute("""INSERT INTO routes (NAME, number) VALUES (?,?)""", new_name, new_number)
+                cursor.execute("""INSERT INTO routes (name, number) VALUES (?,?)""", new_name, new_number)
                 cursor.commit()
             except pyodbc.Error as exc:
                 cursor.rollback()
@@ -426,13 +479,79 @@ class MainWindowUI(QWidget):
             # self.trains_table.setCellWidget(i, 4, edit_route_passages_button)
             i += 1
 
+    #########################################
+    ######################################
+    # TODO СТРАНИЦА РЕДАКТИРОВАНИЯ РАСПИСАНИЯ
+    ###################################\
+
+
+    @QtCore.pyqtSlot()
+    def __add_passage(self):  # TODO: Перенести в BackEnd
+        add_train_dialog = self.AddTrainDialog(self)
+        ok = False
+        while not ok:
+            if add_train_dialog.exec_():
+                new_number: str = add_train_dialog.new_train_number
+                try:
+                    amount = cursor.execute("""SELECT COUNT(*) cnt FROM trains
+                                    WHERE number = ?""",new_number).fetchone()[0]
+                    if amount > 0:
+                        QMessageBox.warning(self, "You can't add that Train!",
+                                         "Train already exists!")
+                        continue
+                    cursor.execute("""INSERT INTO trains (number) VALUES (?)""", new_number)
+                    cursor.commit()
+                    ok = True
+                except pyodbc.Error as exc:
+                    cursor.rollback()
+                    return
+                self.__main_app.trains_manager.update_admin_timetable()
+            else:
+                print("...Ничего не делаем")    # TODO
+                return
+
+    def fill_TimetableManagment_table(self, passages):
+        self.admin_timetable.setRowCount(0)
+        self.admin_timetable.setColumnCount(4)
+        self.admin_timetable.setHorizontalHeaderLabels([
+            "Поезд", "Маршрут","",""])
+        header = self.admin_timetable.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        header.setCascadingSectionResizes(True)
+        header.setDefaultSectionSize(140)
+        header.setHighlightSections(False)
+        header.setMinimumSectionSize(100)
+        header.setSortIndicatorShown(False)
+        header.setStretchLastSection(False)
+
+        i = 0
+        for train_id, route_id, train_name, route_name in passages:
+            self.admin_timetable.insertRow(i)
+            self.admin_timetable.setItem(i, 0, QTableWidgetItem(train_name))
+            edit_passage_button = QPushButton(text="Ред.", parent=self)
+            edit_passage_button.clicked.connect(
+                lambda state, t_id=train_id, r_id=route_id:
+                    self.__main_app.timetable_manager.open_edit_passage_Dialog(t_id,r_id))
+
+            remove_passage_button = QPushButton(text="Удалить", parent=self)
+            remove_passage_button.clicked.connect(
+                lambda state, t_id=train_id, r_id=route_id:
+                self.__main_app.timetable_manager.delete_passage(t_id, r_id))
+
+            self.admin_timetable.setCellWidget(i, 1, edit_passage_button)
+            self.admin_timetable.setCellWidget(i, 2, remove_passage_button)
+            # self.admin_timetable.setCellWidget(i, 4, edit_route_passages_button)
+            i += 1
+
+
 
 class ApplicationBack():
     def __init__(self, user_interface: MainWindowUI):
         self._ui = user_interface  # MAIN APPLICATION INTERFACE
         self._ui.__main_app = self
-        self.route_manager = RoutesManager.Routes_Manager(self._ui, cursor, self)
-        self.trains_manager = TrainsManager.Trains_Manager(self._ui, cursor, self)
+        self.route_manager = Routes_Manager(self._ui, cursor, self)
+        self.trains_manager = Trains_Manager(self._ui, cursor, self)
+        self.timetable_manager = TimetableManager(self._ui, cursor, self)
         self._ui.init2(self)
 
     def start_route_managment(self):
@@ -440,6 +559,9 @@ class ApplicationBack():
 
     def start_trains_managment(self):
         self.trains_manager.update_trains_table()
+
+    def start_timetable_managment(self):
+        self.timetable_manager.update_timetable_table()
 
 if __name__ == "__main__":
     # os.system('python -m PyQt5.uic.pyuic -x [FILENAME].ui -o [FILENAME].py')

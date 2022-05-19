@@ -1,7 +1,7 @@
 # from copy import copy
 # from functools import partial
 #
-import pyodbc
+# import pyodbc
 # from pyodbc import Cursor
 #
 # from PyQt5.QtWidgets import *
@@ -11,7 +11,7 @@ from PyQt5 import QtCore, QtGui
 
 
 
-class Trains_Manager():
+class TimetableManager:
 
     def __init__(self, user_interface, db_cursor, mainApp):
         # self.editRoute_dialog = None
@@ -19,20 +19,24 @@ class Trains_Manager():
         self._ui = user_interface
         self._db_cursor = db_cursor
 
-    def update_trains_table(self):
-        trains = self.get_all_trains()
-        self._ui.fill_trainsManagment_table(trains)
+    def update_timetable_table(self):
+        passages = self.get_all_passages()
+        self._ui.fill_TimetableManagment_table(passages)
 
-    def get_all_trains(self):
+    def get_all_passages(self):
         #####################################
-        # load all trains from DB
+        # load all passages from DB
         #####################################
-        query = """SELECT * FROM trains order by number"""
-        trains = self._db_cursor.execute(query).fetchall()
-        return trains
+        query = """SELECT train_id, str.route_id, t.number, r.name FROM passages pass
+            INNER JOIN trains t on pass.train_id = t.id
+            INNER JOIN stations_to_routes str ON pass.passage_first_station_to_route_id = str.id
+            INNER JOIN routes r on str.route_id = r.route_id
+            order by train_id, r.name"""
+        passages = self._db_cursor.execute(query).fetchall()
+        return passages
 
     @QtCore.pyqtSlot(int)
-    def delete_train(self, train_id):
+    def delete_passage(self, train_id, route_id):
         self._db_cursor.execute("""DELETE FROM trains WHERE trains.id = ?""", train_id)
         now_trains = self.get_all_trains()
         self._ui.fill_trainsManagment_table(now_trains)
@@ -42,19 +46,13 @@ class Trains_Manager():
     #######################
     ######################
 
-    # def get_stations_of_route(self, route_id):
-    #     curr_stations = self._db_cursor.execute("""SELECT str.id, station_name, sort_order FROM stations_to_routes str
-    #                                     INNER JOIN stations s ON str.station_id = s.station_id  WHERE route_id = ?""",
-    #                                             route_id).fetchall()
-    #     return curr_stations
-
     @QtCore.pyqtSlot(int)
-    def open_edit_train_Dialog(self, train_id):
+    def open_edit_passage_Dialog(self, train_id, route_id):
         # self.editRoute_dialog = EditRouteDialog(route_id,self,self._db_cursor,self._ui)
         # self.editRoute_dialog.fillStatinosBox()
         # self.editRoute_dialog.fill_stations_table(self.get_stations_of_route(route_id))
         # self.editRoute_dialog.exec_()
-        print("HERE OPENS Dialog TRAIN EDITOR") # TODO Добавить создание диалогового окна
+        print("HERE OPENS Dialog PASSAGE TIMETABLE EDITOR") # TODO Добавить создание диалогового окна
         pass
 
 

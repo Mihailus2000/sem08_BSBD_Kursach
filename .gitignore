@@ -5,3 +5,4 @@ venv1/*
 __pycache__
 icons/*
 *.qrc
+ddd.py

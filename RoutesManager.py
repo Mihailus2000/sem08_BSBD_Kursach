@@ -4,17 +4,16 @@ from functools import partial
 # from main import MainWindowUI
 # import PyQt5
 # from PyQt5.uic import loadUi
-
-import pyodbc
-from pyodbc import Cursor
-from PyQt5.QtWidgets import QWidget, QApplication, QStackedWidget, QPushButton, QTableWidget, QTableWidgetItem, \
-    QStyledItemDelegate, QDialog, QLabel, QMainWindow, QInputDialog, QMessageBox, QComboBox, QCheckBox, \
-    QAbstractScrollArea, QDialogButtonBox, QVBoxLayout
+# import pyodbc
+# from pyodbc import Cursor
+# from PyQt5.QtWidgets import QWidget, QApplication, QStackedWidget, QPushButton, QTableWidget, QTableWidgetItem, \
+#     QStyledItemDelegate, QDialog, QLabel, QMainWindow, QInputDialog, QMessageBox, QComboBox, QCheckBox, \
+#     QAbstractScrollArea, QDialogButtonBox, QVBoxLayout
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtCore import Qt, QTime, QSize
-# from main import MainWindowUI, ApplicationBack, EditRouteDialog
-import main
-
+# from PyQt5.QtCore import Qt, QTime, QSize
+# # from main import MainWindowUI, ApplicationBack, EditRouteDialog
+#
+# from main import EditRouteDialog
 #
 # class MyCheckBox(QCheckBox):
 #     def __init__(self, *args):
@@ -251,9 +250,11 @@ import main
 #         id = self.all_stationsBox.currentData()
 #         self.new_station = [name, id]
 #         print("[{}] : {}, {}".format(index, self.all_stationsBox.currentText(), self.all_stationsBox.currentData()))
+from main import EditRouteDialog
+
 
 class Timetable_Manager():
-    def __init__(self,user_interface: main.MainWindowUI, db_cursor: Cursor, mainApp : main.ApplicationBack, route_id):
+    def __init__(self,user_interface, db_cursor, mainApp, route_id):
         self._mainApp = mainApp
         self._ui = user_interface
         self._db_cursor = db_cursor
@@ -280,16 +281,11 @@ class Timetable_Manager():
 
 class Routes_Manager():
 
-    @property
-    def timetable_manager(self):
-        return self._timetable_manager
-
-    def __init__(self, user_interface, db_cursor: Cursor, mainApp):
+    def __init__(self, user_interface, db_cursor, mainApp):
         self.editRoute_dialog = None
         self._mainApp = mainApp
         self._ui = user_interface
         self._db_cursor = db_cursor
-        self._timetable_manager : Timetable_Manager = None
 
     def update_routes(self):
         routes = self.get_all_routes()
@@ -322,7 +318,7 @@ class Routes_Manager():
 
     @QtCore.pyqtSlot(int)
     def open_edit_route_Dialog(self, route_id):
-        self.editRoute_dialog = main.EditRouteDialog(route_id,self,self._db_cursor,self._ui)
+        self.editRoute_dialog = EditRouteDialog(route_id,self,self._db_cursor,self._ui)
         self.editRoute_dialog.fillStatinosBox()
         self.editRoute_dialog.fill_stations_table(self.get_stations_of_route(route_id))
         self.editRoute_dialog.exec_()
@@ -372,12 +368,7 @@ class Routes_Manager():
     ######################
 
 
-    def start_timetable_manager(self, route_id):
-        index = self._ui.stackedWidget.indexOf(self._ui.timetable_form)
-        self._ui.stackedWidget.setCurrentIndex(index)
-        self._timetable_manager = Timetable_Manager(self._ui, self._db_cursor, self._mainApp, route_id)
-        self._ui.update_passages_btn.clicked.connect(self._timetable_manager.update_passages())
-        self._ui.add_passage_btn.clicked.connect(self._timetable_manager.add_new_passage())
+
 
 
 

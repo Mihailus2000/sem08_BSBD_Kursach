@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>518</width>
-    <height>366</height>
+    <width>594</width>
+    <height>441</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -47,7 +47,7 @@
       <string notr="true"/>
      </property>
      <property name="currentIndex">
-      <number>3</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="main_page">
       <property name="styleSheet">
@@ -428,9 +428,9 @@ border-radius:20</string>
            </widget>
           </item>
           <item row="3" column="1">
-           <widget class="QPushButton" name="edit_routes_menu_btn_5">
+           <widget class="QPushButton" name="edit_timetable_menu_btn">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -466,7 +466,8 @@ border-radius:20</string>
 border-radius:20</string>
             </property>
             <property name="text">
-             <string/>
+             <string>Редактирование
+расписания</string>
             </property>
            </widget>
           </item>
