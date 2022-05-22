@@ -250,33 +250,11 @@ from PyQt5 import QtCore, QtGui
 #         id = self.all_stationsBox.currentData()
 #         self.new_station = [name, id]
 #         print("[{}] : {}, {}".format(index, self.all_stationsBox.currentText(), self.all_stationsBox.currentData()))
+from PyQt5.QtWidgets import QMessageBox
+
 from main import EditRouteDialog
+import pyodbc
 
-
-class Timetable_Manager():
-    def __init__(self,user_interface, db_cursor, mainApp, route_id):
-        self._mainApp = mainApp
-        self._ui = user_interface
-        self._db_cursor = db_cursor
-        self._route_id = route_id   # Рейсы связаны с одним маршрутом
-
-    def get_all_passages_from_route(self):
-        get_passages = """SELECT passage_number, t.name FROM stations_to_routes
-            LEFT JOIN timetable
-            ON stations_to_routes.id = timetable.routes_to_stations
-            LEFT JOIN trains t on timetable.train_id = t.id
-            WHERE stations_to_routes.route_id = ?
-            GROUP BY passage_number, sort_order
-            ORDER BY passage_number, sort_order"""
-        passages = self._db_cursor.execute(get_passages,self._route_id,self._route_id).fetchall()
-        return passages
-
-    def update_timetable(self):
-        passages = self.get_all_passages_from_route()
-        self._ui.fill_admin_timetable(passages)
-
-    def add_new_passage(self):
-        pass
 
 
 class Routes_Manager():
@@ -300,8 +278,15 @@ class Routes_Manager():
         return routes
 
     @QtCore.pyqtSlot(int)
-    def delete_route(self, route_id):
-        self._db_cursor.execute("""DELETE FROM routes WHERE route_id = ?""",route_id)
+    def delete_route(self, route_id):   #TODO Проверка что нет использованных данных в построении расписания!
+        try:
+            self._db_cursor.execute("""DELETE FROM routes WHERE route_id = ?""",route_id)
+            self._db_cursor.commit()
+        except pyodbc.Error as exc:
+            self._db_cursor.rollback()
+            QMessageBox.critical(self._ui, "Route deletion failed!",
+                                 "Can't delete route because of:\n{}".format(exc.args))
+            return
         routes = self.get_all_routes()
         self._ui.fill_routeManagment_table(routes=routes)
 

@@ -27,19 +27,19 @@ class TimetableManager:
         #####################################
         # load all passages from DB
         #####################################
-        query = """SELECT train_id, str.route_id, t.number, r.name FROM passages pass
-            INNER JOIN trains t on pass.train_id = t.id
-            INNER JOIN stations_to_routes str ON pass.passage_first_station_to_route_id = str.id
-            INNER JOIN routes r on str.route_id = r.route_id
-            order by train_id, r.name"""
+        query = """SELECT DISTINCT t.id, t.number, r.route_id, r.name FROM trains t 
+        INNER JOIN passages p ON p.train_id = t.id 
+        INNER JOIN stations_to_routes str ON p.passage_first_station_to_route_id = str.id
+        INNER JOIN routes r on str.route_id = r.route_id"""
         passages = self._db_cursor.execute(query).fetchall()
         return passages
 
     @QtCore.pyqtSlot(int)
     def delete_passage(self, train_id, route_id):
-        self._db_cursor.execute("""DELETE FROM trains WHERE trains.id = ?""", train_id)
-        now_trains = self.get_all_trains()
-        self._ui.fill_trainsManagment_table(now_trains)
+        pass
+        # self._db_cursor.execute("""DELETE FROM trains WHERE trains.id = ?""", train_id)
+        # now_trains = self.get_all_passages()
+        # self._ui.fill_TimetableManagment_table(now_trains)
 
 
     #########################

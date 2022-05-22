@@ -15,7 +15,8 @@ from PyQt5.QtCore import Qt, QTime, QSize
 
 from PyQt5.QtWidgets import QWidget, QApplication, QStackedWidget, QPushButton, QTableWidget, QTableWidgetItem, \
     QStyledItemDelegate, QDialog, QLabel, QMainWindow, QInputDialog, QMessageBox, QComboBox, QCheckBox, \
-    QAbstractScrollArea, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy, QLineEdit, QHeaderView
+    QAbstractScrollArea, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy, QLineEdit, QHeaderView, \
+    QTimeEdit
 from PyQt5.uic import loadUi, pyuic
 from PyQt5 import QtCore, QtGui
 
@@ -23,6 +24,8 @@ from PyQt5 import QtCore, QtGui
 from TrainsManager import *
 from RoutesManager import *
 from TimetableManager import *
+import regex as re
+
 
 #
 # class EditRouteDialog(QDialog):
@@ -81,52 +84,388 @@ class EditRouteDialog(QDialog):
             self.stationsToRoute_table.setCellWidget(i, 2, remove_route_button)
             i += 1
 
-
     #########################################
     ######################################
     ###################################
     ##############################
+
+
+class MyCheckBox(QCheckBox):
+    def __init__(self, *args):
+        super(MyCheckBox, self).__init__(*args)  # will fail if passing **kwargs
+        self._readOnly = False
+
+    def isReadOnly(self):
+        return self._readOnly
+
+    def mousePressEvent(self, event):
+        if (self.isReadOnly()):
+            event.accept()
+        else:
+            super(MyCheckBox, self).mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if (self.isReadOnly()):
+            event.accept()
+        else:
+            super(MyCheckBox, self).mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if (self.isReadOnly()):
+            event.accept()
+        else:
+            super(MyCheckBox, self).mouseReleaseEvent(event)
+
+    # Handle event in which the widget has focus and the spacebar is pressed.
+    def keyPressEvent(self, event):
+        if (self.isReadOnly()):
+            event.accept()
+        else:
+            super(MyCheckBox, self).keyPressEvent(event)
+
+    @QtCore.pyqtSlot(bool)
+    def setReadOnly(self, state):
+        self._readOnly = state
+
+    readOnly = QtCore.pyqtProperty(bool, isReadOnly, setReadOnly)
+
+
+class SignalwsBlockedWidget(object):
+    def __init__(self, widget):
+        self.__w = widget
+
+    def __enter__(self):
+        self.__w.blockSignals(True)
+        return self.__w
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_tb is not None:
+            print("ERROR: {}".format(exc_tb.args))
+        self.__w.blockSignals(False)
+        return True
+
 
 class EditTimetableDialog(QDialog):
     def __init__(self, db_cursor: pyodbc.Cursor, parent=None):
         super().__init__(parent)
         loadUi("editPassagesDialog.ui", self)
         self._db_cursor = db_cursor
+        self.fill_routes_box()
+        self.fill_trains_box()
         self.trains_comboBox.currentIndexChanged.connect(self.table_update)
         self.routes_comboBox.currentIndexChanged.connect(self.table_update)
+        self.route_id = None
+        self.train_id = None
+        self.table_update()
+        self.monday_checkBox.stateChanged.connect(
+            lambda state, day=self.monday_checkBox.text(): self.work_days_changed(state, day))
+        self.tuesday_checkBox.stateChanged.connect(
+            lambda state, day=self.tuesday_checkBox.text(): self.work_days_changed(state, day))
+        self.wednesday_checkBox.stateChanged.connect(
+            lambda state, day=self.wednesday_checkBox.text(): self.work_days_changed(state, day))
+        self.thirsday_checkBox.stateChanged.connect(
+            lambda state, day=self.thirsday_checkBox.text(): self.work_days_changed(state, day))
+        self.friday_checkBox.stateChanged.connect(
+            lambda state, day=self.friday_checkBox.text(): self.work_days_changed(state, day))
+        self.saturday_checkBox.stateChanged.connect(
+            lambda state, day=self.saturday_checkBox.text(): self.work_days_changed(state, day))
+        self.sunday_checkBox.stateChanged.connect(
+            lambda state, day=self.sunday_checkBox.text(): self.work_days_changed(state, day))
 
         # self.add_station_btn.clicked.connect(lambda state, r_id=self._route_id:
         #                                      self._routes_manager.add_station_to_route(r_id))
 
+    def update_timetable_by_dayschanges(self, state, day):
+        if state == Qt.Checked:
+            # TODO Надо пройтись по ВСЕМ записям в str и заново сделать insert для нового дня)
+            # TODO Или надо считать все записи в timetables по роуту + поезду (SELECT DISTINCT) и вставить ещё один набор
+            pass
+
+    def work_days_changed(self, state, day):
+        self.route_id = self.routes_comboBox.itemData(self.routes_comboBox.currentIndex())
+        self.train_id = self.trains_comboBox.itemData(self.trains_comboBox.currentIndex())
+        insert_day_in_passages = """INSERT INTO passages (day_of_week, train_id, passage_first_station_to_route_id)
+                        VALUES (?,?,(SELECT str.id FROM stations_to_routes str WHERE route_id = ? AND sort_order = 1))"""
+        delete_first_in_timetable = """DELETE FROM timetable WHERE (passage_id IN (
+                            SELECT p.passage_id FROM passages p INNER JOIN stations_to_routes str on p.passage_first_station_to_route_id = str.id
+                                INNER JOIN (SELECT * FROM timetable)t on p.passage_id = t.passage_id 
+                                WHERE str.route_id = ? AND p.train_id = ? AND p.day_of_week = ?
+                        ))"""
+        delete_day_in_passages = """DELETE FROM passages WHERE day_of_week=? AND train_id = ? 
+            AND passage_first_station_to_route_id = (SELECT str.id FROM stations_to_routes str  WHERE route_id = ? AND sort_order = 1
+            LIMIT 1 )"""
+        if state == Qt.Checked:
+            match day:
+                case "Понедельник":
+                    self._db_cursor.execute(insert_day_in_passages, 0, self.train_id, self.route_id)
+                case "Вторник":
+                    self._db_cursor.execute(insert_day_in_passages, 1, self.train_id, self.route_id)
+                case "Среда":
+                    self._db_cursor.execute(insert_day_in_passages, 2, self.train_id, self.route_id)
+                case "Четверг":
+                    self._db_cursor.execute(insert_day_in_passages, 3, self.train_id, self.route_id)
+                case "Пятница":
+                    self._db_cursor.execute(insert_day_in_passages, 4, self.train_id, self.route_id)
+                case "Суббота":
+                    self._db_cursor.execute(insert_day_in_passages, 5, self.train_id, self.route_id)
+                case "Воскресенье":
+                    self._db_cursor.execute(insert_day_in_passages, 6, self.train_id, self.route_id)
+        else:
+            match day:
+                case "Понедельник":
+                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id, 0)
+                    self._db_cursor.execute(delete_day_in_passages, 0, self.train_id, self.route_id)
+                case "Вторник":
+                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id, 1)
+                    self._db_cursor.execute(delete_day_in_passages, 1, self.train_id, self.route_id)
+                case "Среда":
+                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id, 2)
+                    self._db_cursor.execute(delete_day_in_passages, 2, self.train_id, self.route_id)
+                case "Четверг":
+                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id, 3)
+                    self._db_cursor.execute(delete_day_in_passages, 3, self.train_id, self.route_id)
+                case "Пятница":
+                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id, 4)
+                    self._db_cursor.execute(delete_day_in_passages, 4, self.train_id, self.route_id)
+                case "Суббота":
+                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id, 5)
+                    self._db_cursor.execute(delete_day_in_passages, 5, self.train_id, self.route_id)
+                case "Воскресенье":
+                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id, 6)
+                    self._db_cursor.execute(delete_day_in_passages, 6, self.train_id, self.route_id)
+        self._db_cursor.commit()
+        self.table_update()
 
     def table_update(self):
+        checkBoxes_Notenabled = False
+        self.passage_stations_tbl.setRowCount(0)
+        self.passage_stations_tbl.setColumnCount(4)
+        self.passage_stations_tbl.setHorizontalHeaderLabels([
+            "Станция", "Время отправления", "Стоянка", "Используется"])
+        header = self.passage_stations_tbl.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        header.setCascadingSectionResizes(True)
+        header.setDefaultSectionSize(140)
+        header.setHighlightSections(False)
+        header.setMinimumSectionSize(100)
+        header.setSortIndicatorShown(False)
+        header.setStretchLastSection(False)
+
+        checkboxes = self.checkboxes_widget.findChildren(QCheckBox)
+        for checkbox in checkboxes:
+            checkbox.blockSignals(True)
+            checkbox.setChecked(False)
+            checkbox.blockSignals(False)
+
         route_id = self.routes_comboBox.itemData(self.routes_comboBox.currentIndex())
         train_id = self.trains_comboBox.itemData(self.trains_comboBox.currentIndex())
 
-        passages = """SELECT * FROM passages p
-                    INNER JOIN stations_to_routes str ON p.passage_first_station_to_route_id = str.id
-                    WHERE str.route_id = ? AND p.train_id = ?"""
+        get_passages = """SELECT day_of_week FROM passages p
+            INNER JOIN stations_to_routes str ON p.passage_first_station_to_route_id = str.id
+            INNER JOIN routes r on str.route_id = r.route_id
+            WHERE r.route_id = ? AND train_id = ?
+            ORDER BY day_of_week"""
+        # TODO Добавить случай, когда нет сразу ничего в БД по этой ПАРЕ
+        passages = self._db_cursor.execute(get_passages, route_id, train_id).fetchall()
+        if len(passages) == 0:
+            print("Обновляю таблицу рейса в соответствии с парой ({},{})".format(route_id, train_id))
+            checkBoxes_Notenabled = True  # Запрет на изменение боксов
+            # TODO Добавить информирующее окно, что не найдено по паре ничего
+            pass
+        else:
+            for dof in passages:
+                match dof[0]:
+                    case 0:
+                        self.monday_checkBox.blockSignals(True)
+                        self.monday_checkBox.setChecked(True)
+                        self.monday_checkBox.blockSignals(False)
+                    case 1:
+                        self.tuesday_checkBox.blockSignals(True)
+                        self.tuesday_checkBox.setChecked(True)
+                        self.tuesday_checkBox.blockSignals(False)
 
-        self.passage_stations_tbl.setRowCount(0)
-        self.passage_stations_tbl.setColumnCount(3)
-        self.passage_stations_tbl.setHorizontalHeaderLabels([
-            "Станция", "Время отправления", "Стоянка"])
+                    case 2:
+                        self.wednesday_checkBox.blockSignals(True)
+                        self.wednesday_checkBox.setChecked(True)
+                        self.wednesday_checkBox.blockSignals(False)
+                    case 3:
+                        self.thirsday_checkBox.blockSignals(True)
+                        self.thirsday_checkBox.setChecked(True)
+                        self.thirsday_checkBox.blockSignals(False)
+                    case 4:
+                        self.friday_checkBox.blockSignals(True)
+                        self.friday_checkBox.setChecked(True)
+                        self.friday_checkBox.blockSignals(False)
+                    case 5:
+                        self.saturday_checkBox.blockSignals(True)
+                        self.saturday_checkBox.setChecked(True)
+                        self.saturday_checkBox.blockSignals(False)
+                    case 6:
+                        self.sunday_checkBox.blockSignals(True)
+                        self.sunday_checkBox.setChecked(True)
+                        self.sunday_checkBox.blockSignals(False)
+
+        passage_stations = """SELECT s.station_id, s.station_name, str.sort_order FROM stations_to_routes str
+            INNER JOIN stations s ON s.station_id = str.station_id
+            # INNER JOIN routes r on str.route_id = r.route_id
+            WHERE str.route_id = ?
+            ORDER BY sort_order"""
+        stations = self._db_cursor.execute(passage_stations, route_id).fetchall()
+
         i = 0
-        for r_to_st_id, st_name, sort_order in curr_stations:
-            self.stationsToRoute_table.insertRow(i)
-            sort_order = QTableWidgetItem(str(sort_order))
-            sort_order.setFlags((sort_order.flags() | QtCore.Qt.CustomizeWindowHint) &
-                                ~QtCore.Qt.ItemIsEditable)
-            self.stationsToRoute_table.setItem(i, 0, sort_order)
+        self.passage_stations_tbl.setRowCount(len(stations))
+        for st_id, st_name, order in stations:
+            # self.passage_stations_tbl.insertRow(self.passage_stations_tbl.rowCount())
             station_name = QTableWidgetItem(st_name)
             station_name.setFlags((station_name.flags() | QtCore.Qt.CustomizeWindowHint) &
                                   ~QtCore.Qt.ItemIsEditable)
-            self.stationsToRoute_table.setItem(i, 1, station_name)
-            remove_route_button = QPushButton(text="Удалить", parent=self)
-            remove_route_button.clicked.connect(lambda state, data=(r_to_st_id, self._route_id):
-                                                self._routes_manager.delete_station_from_route(data))
-            self.stationsToRoute_table.setCellWidget(i, 2, remove_route_button)
+            self.passage_stations_tbl.setItem(i, 0, station_name)
+
+            time = QTableWidgetItem("")
+            time.setFlags((time.flags() | QtCore.Qt.CustomizeWindowHint) &
+                          ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsEditable)
+            self.passage_stations_tbl.setItem(i, 1, time)
+
+            delta = QTableWidgetItem("")
+            delta.setFlags((delta.flags() | QtCore.Qt.CustomizeWindowHint) &
+                           ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsEditable)
+            self.passage_stations_tbl.setItem(i, 2, delta)
+
+            enabledBox = MyCheckBox(self)
+            enabledBox.setReadOnly(checkBoxes_Notenabled)
+            enabledBox.stateChanged.connect(lambda state, tbl_row=i,
+                                                   r_id=route_id, t_id=train_id,
+                                                   st_id=st_id: self.change_row_usingState(state, tbl_row, r_id, t_id,
+                                                                                           st_id))
+            self.passage_stations_tbl.setCellWidget(i, 3, enabledBox)
             i += 1
+
+        query_passage_timetable_info = """SELECT DISTINCT t.station_id, sort_order, TIME_FORMAT(arrival_time,'%H:%i'), delay
+            FROM stations_to_routes str
+            INNER JOIN passages pass on str.id = pass.passage_first_station_to_route_id
+            INNER JOIN timetable t on pass.passage_id = t.passage_id
+            # INNER JOIN stations s ON s.station_id = str.station_id
+            # INNER JOIN routes r on str.route_id = r.route_id
+            WHERE str.route_id = ? AND train_id = ?
+            ORDER BY sort_order"""
+        passage_timetable_info = self._db_cursor.execute(query_passage_timetable_info, route_id, train_id).fetchall()
+
+        for st_id, sort_order, arr_time, delay in passage_timetable_info:
+            hour, minute = arr_time.split(':')
+            # new_start_time = [int(self.time_setter.time().toString("HH")), int(self.time_setter.time().toString("mm"))]
+            qtime_edit = QTimeEdit(QTime(int(hour), int(minute)), self)
+            qtime_edit.timeChanged.connect(lambda time, st_id=st_id, r_id=route_id, t_id=train_id, sort=sort_order - 1
+                                           : self.change_time(time, st_id, r_id, t_id, sort))
+            self.passage_stations_tbl.setCellWidget(sort_order-1, 1, qtime_edit)
+
+            delta = QLineEdit(str(delay))
+            delta.textEdited.connect(lambda number, st_id=st_id, r_id=route_id, t_id=train_id, sort=sort_order - 1
+                                     : self.changed_delay(number, st_id, r_id, t_id, sort))
+            self.passage_stations_tbl.setCellWidget(sort_order-1, 2, delta)
+
+            mycheckBox: MyCheckBox = self.passage_stations_tbl.cellWidget(sort_order - 1, 3)
+            with SignalwsBlockedWidget(mycheckBox) as checkbox:
+                checkbox.setCheckState(Qt.Checked)
+
+            pass
+
+    def change_row_usingState(self, state, tbl_row, route_id, train_id, st_id):
+        if state == Qt.Checked:
+            print("Change row state (INSERT) ({},{})".format(True, st_id))
+            insert_query = """INSERT INTO timetable (passage_id, arrival_time, delay, station_id) 
+            (SELECT p.passage_id, TIME(?), ?, ?
+                FROM passages p INNER JOIN stations_to_routes str on p.passage_first_station_to_route_id = str.id
+                AND str.route_id = ? AND p.train_id = ?
+                ORDER BY str.sort_order)"""
+
+            time_w = QTimeEdit(QTime(0, 0), self)
+            time_w.setDisplayFormat("HH:mm")
+            time_w.timeChanged.connect(lambda time, st_id=st_id, r_id=route_id, t_id=train_id, sort=tbl_row
+                                       : self.change_time(time, st_id, r_id, t_id, sort))
+            self.passage_stations_tbl.setCellWidget(tbl_row, 1, time_w)
+            selected_time: QTime = self.passage_stations_tbl.cellWidget(tbl_row, 1).time()
+            db_time = selected_time.toString("HH:mm")
+
+            delta = QLineEdit("0", self)
+            delta.textEdited.connect(lambda number, st_id=st_id, r_id=route_id, t_id=train_id, sort=tbl_row
+                                     : self.changed_delay(number, st_id, r_id, t_id, sort))
+            self.passage_stations_tbl.setCellWidget(tbl_row, 2, delta)
+            delay = int(self.passage_stations_tbl.cellWidget(tbl_row, 2).text())
+            self._db_cursor.execute(insert_query, db_time, delay, st_id, route_id, train_id)  # TODO try: catch
+        else:
+            print("Change row state (DELETE) ({},{})".format(False, st_id))
+            del_query = """DELETE FROM timetable WHERE (passage_id IN (
+                            SELECT p.passage_id FROM passages p INNER JOIN stations_to_routes str on p.passage_first_station_to_route_id = str.id
+                                AND str.route_id = ? AND p.train_id = ?
+                                INNER JOIN (SELECT * FROM timetable)t on p.passage_id = t.passage_id  
+                        )) 
+                        AND 
+                        station_id=?"""
+            # query = """SELECT * FROM timetable t INNER JOIN passages p on t.passage_id = p.passage_id
+            #     INNER JOIN stations_to_routes str on p.passage_first_station_to_route_id = str.id
+            #
+            query = """SELECT * FROM timetable WHERE (passage_id IN (
+                            SELECT p.passage_id FROM passages p INNER JOIN stations_to_routes str on p.passage_first_station_to_route_id = str.id
+                                INNER JOIN timetable t on p.passage_id = t.passage_id 
+                                WHERE route_id = ? AND p.train_id = ?
+                        )) 
+                        AND 
+                        station_id=?"""
+
+            self._db_cursor.execute(del_query, route_id, train_id, st_id)
+            self.passage_stations_tbl.removeCellWidget(tbl_row, 1)
+            self.passage_stations_tbl.removeCellWidget(tbl_row, 2)
+
+            # time = QTableWidgetItem("")
+            # time.setFlags((time.flags() | QtCore.Qt.CustomizeWindowHint) &
+            #               ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsEditable)
+            # self.passage_stations_tbl.setItem(tbl_row, 1, time)
+            #
+            # delta = QTableWidgetItem("")
+            # delta.setFlags((delta.flags() | QtCore.Qt.CustomizeWindowHint) &
+            #                ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsEditable)
+            # self.passage_stations_tbl.setItem(tbl_row, 2, delta)
+
+        self._db_cursor.commit()
+
+    def change_time(self, new_time: QTime, st_id, r_id, t_id, sort_ord):  # time, station, route, train
+        query = """UPDATE timetable SET arrival_time = ? WHERE passage_id IN (
+            SELECT p.passage_id FROM passages p INNER JOIN stations_to_routes str on p.passage_first_station_to_route_id = str.id
+            INNER JOIN timetable t on p.passage_id = t.passage_id
+            WHERE route_id = ? AND p.train_id = ? AND t.station_id = ?)"""
+        self._db_cursor.execute(query, new_time.toString("HH:mm"), r_id, t_id, st_id)
+        self.table_update()
+
+    def changed_delay(self, number, st_id, r_id, t_id, sort_ord):
+        reg = re.compile(r"^\d+$")
+        all_matches = re.fullmatch(reg, number)
+        if all_matches is not None:
+            query = """UPDATE timetable SET delay = ? WHERE passage_id IN (
+            SELECT p.passage_id FROM passages p INNER JOIN stations_to_routes str on p.passage_first_station_to_route_id = str.id
+            INNER JOIN timetable t on p.passage_id = t.passage_id
+            WHERE route_id = ? AND p.train_id = ? AND t.station_id = ?)"""
+            self._db_cursor.execute(query, int(number), r_id, t_id, st_id)
+            widget = self.passage_stations_tbl.cellWidget(sort_ord, 2)
+            widget.setStyleSheet("background-color : #FFFFFF")
+            self.table_update()
+        else:
+            widget = self.passage_stations_tbl.cellWidget(sort_ord, 2)
+            widget.setStyleSheet("background-color : #FFCCCC")
+
+        # self.stationsToRoute_table.insertRow(i)
+        # sort_order = QTableWidgetItem(str(sort_order))
+        # sort_order.setFlags((sort_order.flags() | QtCore.Qt.CustomizeWindowHint) &
+        #                     ~QtCore.Qt.ItemIsEditable)
+        # self.stationsToRoute_table.setItem(i, 0, sort_order)
+        # station_name = QTableWidgetItem(st_name)
+        # station_name.setFlags((station_name.flags() | QtCore.Qt.CustomizeWindowHint) &
+        #                       ~QtCore.Qt.ItemIsEditable)
+        # self.stationsToRoute_table.setItem(i, 1, station_name)
+        # remove_route_button = QPushButton(text="Удалить", parent=self)
+        # remove_route_button.clicked.connect(lambda state, data=(r_to_st_id, self._route_id):
+        #                                     self._routes_manager.delete_station_from_route(data))
+        # self.stationsToRoute_table.setCellWidget(i, 2, remove_route_button)
+        # i += 1
 
     def fill_trains_box(self):
         trains = self._db_cursor.execute("""SELECT id, number FROM trains t
@@ -140,9 +479,6 @@ class EditTimetableDialog(QDialog):
         for r_id, r_name in routes:
             self.routes_comboBox.addItem(r_name, userData=r_id)
 
-
-
-
     ##################################
     ##################################
     ##################################
@@ -151,7 +487,6 @@ class EditTimetableDialog(QDialog):
 
 
 class MainWindowUI(QWidget):
-
     class AddRouteDialog(QDialog):
         new_route_name: str
         new_route_number: str
@@ -216,7 +551,6 @@ class MainWindowUI(QWidget):
             self.enter_number = QLineEdit(self)
             self.number_line_layout.addWidget(self.enter_number)
 
-
             self.buttons_layout = QHBoxLayout(self)
             self.cancel_button = QPushButton("Отмена", self)
             self.apply_button = QPushButton("Добавить", self)
@@ -266,7 +600,7 @@ class MainWindowUI(QWidget):
         self.back_button_on_routePage.clicked.connect(lambda: self.stackedWidget.setCurrentIndex(0))
 
         ##########################
-        #TODO PAGE : Route Managment
+        # TODO PAGE : Route Managment
         ##########################
 
     def init2(self, mainApp):
@@ -275,10 +609,12 @@ class MainWindowUI(QWidget):
         self.add_routes_btn.clicked.connect(self.__add_route)
         self.add_new_train_btn.clicked.connect(self.__add_train)
         self.update_trains_table_btn.clicked.connect(self.__main_app.trains_manager.update_trains_table)
+        self.add_passage_btn.clicked.connect(self.__add_passage)
+        self.update_passages_btn.clicked.connect(self.__main_app.timetable_manager.update_timetable_table)
 
     #########################################
     ######################################
-    #TODO СТАРТОВАЯ СТРАНИЦА
+    # TODO СТАРТОВАЯ СТРАНИЦА
     ###################################
 
     @QtCore.pyqtSlot()
@@ -317,7 +653,7 @@ class MainWindowUI(QWidget):
 
     #########################################
     ######################################
-    # СТРАНИЦА МАРШРУТОВ
+    # TODO СТРАНИЦА МАРШРУТОВ
     ###################################
 
     @QtCore.pyqtSlot()
@@ -371,12 +707,11 @@ class MainWindowUI(QWidget):
                 return
             self.__main_app.route_manager.update_routes()
         else:
-            print("...Ничего не делаем")    # TODO
-
+            print("...Ничего не делаем")  # TODO
 
     #########################################
     ######################################
-    #TODO СТРАНИЦА РЕЙСОВ
+    # TODO СТРАНИЦА РЕЙСОВ
     ###################################\
 
     def fill_admin_timetable(self, passages):  # passage_number, train_number
@@ -411,10 +746,9 @@ class MainWindowUI(QWidget):
             self.admin_timetable.setCellWidget(i, 3, remove_passage_button)
             i += 1
 
-
     #########################################
     ######################################
-    #TODO СТРАНИЦА ПОЕЗДОВ
+    # TODO СТРАНИЦА ПОЕЗДОВ
     ###################################\
 
     @QtCore.pyqtSlot()
@@ -426,10 +760,10 @@ class MainWindowUI(QWidget):
                 new_number: str = add_train_dialog.new_train_number
                 try:
                     amount = cursor.execute("""SELECT COUNT(*) cnt FROM trains
-                                    WHERE number = ?""",new_number).fetchone()[0]
+                                    WHERE number = ?""", new_number).fetchone()[0]
                     if amount > 0:
                         QMessageBox.warning(self, "You can't add that Train!",
-                                         "Train already exists!")
+                                            "Train already exists!")
                         continue
                     cursor.execute("""INSERT INTO trains (number) VALUES (?)""", new_number)
                     cursor.commit()
@@ -439,14 +773,14 @@ class MainWindowUI(QWidget):
                     return
                 self.__main_app.trains_manager.update_trains_table()
             else:
-                print("...Ничего не делаем")    # TODO
+                print("...Ничего не делаем")  # TODO
                 return
 
     def fill_trainsManagment_table(self, trains):
         self.trains_table.setRowCount(0)
         self.trains_table.setColumnCount(3)
         self.trains_table.setHorizontalHeaderLabels([
-            "Номер", "",""])
+            "Номер", "", ""])
         header = self.trains_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
         header.setCascadingSectionResizes(True)
@@ -484,37 +818,36 @@ class MainWindowUI(QWidget):
     # TODO СТРАНИЦА РЕДАКТИРОВАНИЯ РАСПИСАНИЯ
     ###################################\
 
-
     @QtCore.pyqtSlot()
     def __add_passage(self):  # TODO: Перенести в BackEnd
-        add_train_dialog = self.AddTrainDialog(self)
-        ok = False
-        while not ok:
-            if add_train_dialog.exec_():
-                new_number: str = add_train_dialog.new_train_number
-                try:
-                    amount = cursor.execute("""SELECT COUNT(*) cnt FROM trains
-                                    WHERE number = ?""",new_number).fetchone()[0]
-                    if amount > 0:
-                        QMessageBox.warning(self, "You can't add that Train!",
-                                         "Train already exists!")
-                        continue
-                    cursor.execute("""INSERT INTO trains (number) VALUES (?)""", new_number)
-                    cursor.commit()
-                    ok = True
-                except pyodbc.Error as exc:
-                    cursor.rollback()
-                    return
-                self.__main_app.trains_manager.update_admin_timetable()
-            else:
-                print("...Ничего не делаем")    # TODO
-                return
+        add_passage_dialog = EditTimetableDialog(cursor, self)
+        # ok = False
+        # while not ok:
+        if add_passage_dialog.exec_():
+            new_number: str = add_passage_dialog.new_train_number
+            # try:
+            #     # amount = cursor.execute("""SELECT COUNT(*) cnt FROM trains
+            #     #                 WHERE number = ?""", new_number).fetchone()[0]
+            #     # if amount > 0:
+            #     #     QMessageBox.warning(self, "You can't add that Train!",
+            #     #                         "Train already exists!")
+            #     #     continue
+            #     # cursor.execute("""INSERT INTO trains (number) VALUES (?)""", new_number)
+            #     # cursor.commit()
+            #     # ok = True
+            # except pyodbc.Error as exc:
+            #     cursor.rollback()
+            #     return
+            self.__main_app.trains_manager.update_admin_timetable()
+        else:
+            print("...Ничего не делаем")  # TODO
+            return
 
     def fill_TimetableManagment_table(self, passages):
         self.admin_timetable.setRowCount(0)
         self.admin_timetable.setColumnCount(4)
         self.admin_timetable.setHorizontalHeaderLabels([
-            "Поезд", "Маршрут","",""])
+            "Поезд №", "Маршрут", "", ""])
         header = self.admin_timetable.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
         header.setCascadingSectionResizes(True)
@@ -525,24 +858,25 @@ class MainWindowUI(QWidget):
         header.setStretchLastSection(False)
 
         i = 0
-        for train_id, route_id, train_name, route_name in passages:
+        for train_id, train_name, route_id, route_name in passages:
             self.admin_timetable.insertRow(i)
             self.admin_timetable.setItem(i, 0, QTableWidgetItem(train_name))
+            self.admin_timetable.setItem(i, 1, QTableWidgetItem(route_name))
+
             edit_passage_button = QPushButton(text="Ред.", parent=self)
             edit_passage_button.clicked.connect(
                 lambda state, t_id=train_id, r_id=route_id:
-                    self.__main_app.timetable_manager.open_edit_passage_Dialog(t_id,r_id))
+                self.__main_app.timetable_manager.open_edit_passage_Dialog(t_id, r_id))
 
             remove_passage_button = QPushButton(text="Удалить", parent=self)
             remove_passage_button.clicked.connect(
                 lambda state, t_id=train_id, r_id=route_id:
                 self.__main_app.timetable_manager.delete_passage(t_id, r_id))
 
-            self.admin_timetable.setCellWidget(i, 1, edit_passage_button)
-            self.admin_timetable.setCellWidget(i, 2, remove_passage_button)
+            self.admin_timetable.setCellWidget(i, 2, edit_passage_button)
+            self.admin_timetable.setCellWidget(i, 3, remove_passage_button)
             # self.admin_timetable.setCellWidget(i, 4, edit_route_passages_button)
             i += 1
-
 
 
 class ApplicationBack():
@@ -562,6 +896,7 @@ class ApplicationBack():
 
     def start_timetable_managment(self):
         self.timetable_manager.update_timetable_table()
+
 
 if __name__ == "__main__":
     # os.system('python -m PyQt5.uic.pyuic -x [FILENAME].ui -o [FILENAME].py')
