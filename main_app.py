@@ -16,15 +16,17 @@ from PyQt5.QtCore import Qt, QTime, QSize
 from PyQt5.QtWidgets import QWidget, QApplication, QStackedWidget, QPushButton, QTableWidget, QTableWidgetItem, \
     QStyledItemDelegate, QDialog, QLabel, QMainWindow, QInputDialog, QMessageBox, QComboBox, QCheckBox, \
     QAbstractScrollArea, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy, QLineEdit, QHeaderView, \
-    QTimeEdit
+    QTimeEdit, QStatusBar, QSpinBox
 from PyQt5.uic import loadUi, pyuic
 from PyQt5 import QtCore, QtGui
 
 # from CheckableCombobox import CheckableComboBox
-from TrainsManager import *
-from RoutesManager import *
-from TimetableManager import *
+import RoutesManager
+import TimetableManager
+import TrainsManager
+import PurchaseManager
 import regex as re
+
 
 
 #
@@ -173,6 +175,17 @@ class EditTimetableDialog(QDialog):
         self.sunday_checkBox.stateChanged.connect(
             lambda state, day=self.sunday_checkBox.text(): self.work_days_changed(state, day))
 
+    def set_route_and_train_manual(self, route_id, train_id):
+        self.route_id = route_id
+        self.train_id = train_id
+        with SignalwsBlockedWidget(self.trains_comboBox) as t_cbox1:
+            index = t_cbox1.findData(train_id)
+            t_cbox1.setCurrentIndex(index)
+        with SignalwsBlockedWidget(self.routes_comboBox) as r_cbox1:
+            index = r_cbox1.findData(route_id)
+            r_cbox1.setCurrentIndex(index)
+        self.table_update(route_id,train_id)
+
 
     def update_timetable_by_dayschanges(self, state, day): # TODO ДОДЕЛАТЬ
         if state == Qt.Checked:
@@ -194,10 +207,12 @@ class EditTimetableDialog(QDialog):
         # delete_day_in_passages = """DELETE FROM passages WHERE day_of_week=? AND train_id = ?
         #     AND passage_first_station_to_route_id = (SELECT str.id FROM stations_to_routes str  WHERE route_id = ? AND sort_order = 1
         #     LIMIT 1 )"""
-        delete_first_in_timetable = """DELETE FROM timetable tt WHERE route_id=? AND train_id=?"""
-        delete_day_in_passages = """DELETE FROM passages WHERE day_of_week=? AND train_id = ?
+        first_delete_day_in_passages = """DELETE FROM passages WHERE day_of_week=? AND train_id = ?
             AND passage_first_station_to_route_id = (SELECT str.id FROM stations_to_routes str  WHERE route_id = ? AND sort_order = 1
             LIMIT 1 )"""
+        check_is_empty = """SELECT COUNT(p.passage_id) FROM passages p WHERE train_id = ? AND passage_first_station_to_route_id = 
+            (SELECT str.id FROM stations_to_routes str  WHERE route_id = ? AND sort_order = 1 LIMIT 1 )"""
+        delete_in_timetable = """DELETE FROM timetable tt WHERE route_id=? AND train_id=?"""
         if state == Qt.Checked:
             match day:
                 case "Понедельник":
@@ -217,35 +232,31 @@ class EditTimetableDialog(QDialog):
         else:
             match day:
                 case "Понедельник":
-                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id)
-                    self._db_cursor.execute(delete_day_in_passages, 0, self.train_id, self.route_id)
+                    self._db_cursor.execute(first_delete_day_in_passages, 0, self.train_id, self.route_id)
                 case "Вторник":
-                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id)
-                    self._db_cursor.execute(delete_day_in_passages, 1, self.train_id, self.route_id)
+                    self._db_cursor.execute(first_delete_day_in_passages, 1, self.train_id, self.route_id)
                 case "Среда":
-                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id)
-                    self._db_cursor.execute(delete_day_in_passages, 2, self.train_id, self.route_id)
+                    self._db_cursor.execute(first_delete_day_in_passages, 2, self.train_id, self.route_id)
                 case "Четверг":
-                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id)
-                    self._db_cursor.execute(delete_day_in_passages, 3, self.train_id, self.route_id)
+                    self._db_cursor.execute(first_delete_day_in_passages, 3, self.train_id, self.route_id)
                 case "Пятница":
-                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id)
-                    self._db_cursor.execute(delete_day_in_passages, 4, self.train_id, self.route_id)
+                    self._db_cursor.execute(first_delete_day_in_passages, 4, self.train_id, self.route_id)
                 case "Суббота":
-                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id)
-                    self._db_cursor.execute(delete_day_in_passages, 5, self.train_id, self.route_id)
+                    self._db_cursor.execute(first_delete_day_in_passages, 5, self.train_id, self.route_id)
                 case "Воскресенье":
-                    self._db_cursor.execute(delete_first_in_timetable, self.route_id, self.train_id)
-                    self._db_cursor.execute(delete_day_in_passages, 6, self.train_id, self.route_id)
+                    self._db_cursor.execute(first_delete_day_in_passages, 6, self.train_id, self.route_id)
+        cnt = self._db_cursor.execute(check_is_empty, self.train_id, self.route_id).fetchone()[0]
+        if cnt == 0:
+            self._db_cursor.execute(delete_in_timetable, self.route_id, self.train_id)
         self._db_cursor.commit()
         self.table_update()
 
-    def table_update(self):
+    def table_update(self, r_id = None, t_id = None):
         checkBoxes_Notenabled = False
         self.passage_stations_tbl.setRowCount(0)
-        self.passage_stations_tbl.setColumnCount(4)
+        self.passage_stations_tbl.setColumnCount(5)
         self.passage_stations_tbl.setHorizontalHeaderLabels([
-            "Станция", "Время отправления", "Стоянка", "Используется"])
+            "Станция", "Время отправления", "Стоянка", "Минут до след. станции",  "Используется"])
         header = self.passage_stations_tbl.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
         header.setCascadingSectionResizes(True)
@@ -255,11 +266,12 @@ class EditTimetableDialog(QDialog):
         header.setSortIndicatorShown(False)
         header.setStretchLastSection(False)
 
-        route_id = self.routes_comboBox.itemData(self.routes_comboBox.currentIndex())
-        train_id = self.trains_comboBox.itemData(self.trains_comboBox.currentIndex())
-
-        if route_id is None or train_id is None:
-            return
+        if r_id is None or t_id is None:
+            route_id = self.routes_comboBox.itemData(self.routes_comboBox.currentIndex())
+            train_id = self.trains_comboBox.itemData(self.trains_comboBox.currentIndex())
+        else:
+            route_id = r_id
+            train_id = t_id
 
         checkboxes = self.checkboxes_widget.findChildren(QCheckBox)
         for checkbox in checkboxes:
@@ -340,23 +352,29 @@ class EditTimetableDialog(QDialog):
                            ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsEditable)
             self.passage_stations_tbl.setItem(i, 2, delta)
 
+            min_delta = QTableWidgetItem("")
+            min_delta.setFlags((min_delta.flags() | QtCore.Qt.CustomizeWindowHint) &
+                           ~QtCore.Qt.ItemIsEditable & ~QtCore.Qt.ItemIsEditable)
+            self.passage_stations_tbl.setItem(i, 3, min_delta)
+
             enabledBox = MyCheckBox(self)
             enabledBox.setReadOnly(checkBoxes_Notenabled)
             enabledBox.stateChanged.connect(lambda state, tbl_row=i,
                                                    r_id=route_id, t_id=train_id,
                                                    st_id=st_id: self.change_row_usingState(state, tbl_row, r_id, t_id,
                                                                                            st_id))
-            self.passage_stations_tbl.setCellWidget(i, 3, enabledBox)
+            self.passage_stations_tbl.setCellWidget(i, 4, enabledBox)
             i += 1
 
         # Получение существующих данных из расписания по данной паре
-        query_passage_timetable_info = """SELECT tt.station_id, str.sort_order, TIME_FORMAT(tt.arrival_time, '%H:%i'), tt.delay
+        query_passage_timetable_info = """SELECT tt.station_id, str.sort_order, TIME_FORMAT(tt.arrival_time, '%H:%i'), 
+                                                                                tt.delay, tt.minutes_to_next_station
             FROM timetable tt INNER JOIN stations_to_routes str ON 
             tt.route_id=? AND tt.train_id=? AND tt.route_id=str.route_id AND tt.station_id=str.station_id"""
         passage_timetable_info = self._db_cursor.execute(query_passage_timetable_info, route_id, train_id).fetchall()
 
         # Перебираем данные и заполняем некоторые строки
-        for st_id, sort_order, arr_time, delay in passage_timetable_info:
+        for st_id, sort_order, arr_time, delay, minutes in passage_timetable_info:
             hour, minute = arr_time.split(':')
             qtime_edit = QTimeEdit(QTime(int(hour), int(minute)), self)
             qtime_edit.setKeyboardTracking(False)
@@ -370,7 +388,13 @@ class EditTimetableDialog(QDialog):
                                      : self.changed_delay(item, st_id, r_id, t_id, sort))
             self.passage_stations_tbl.setCellWidget(sort_order-1, 2, delta)
 
-            mycheckBox: MyCheckBox = self.passage_stations_tbl.cellWidget(sort_order - 1, 3)
+            min = QLineEdit(str(delay))
+            min.editingFinished.connect(
+                lambda item=min, st_id=st_id, r_id=route_id, t_id=train_id, sort=sort_order - 1
+                : self.changed_minutes(item, st_id, r_id, t_id, sort))
+            self.passage_stations_tbl.setCellWidget(sort_order - 1, 3, min)
+
+            mycheckBox: MyCheckBox = self.passage_stations_tbl.cellWidget(sort_order - 1, 4)
             with SignalwsBlockedWidget(mycheckBox) as checkbox:
                 checkbox.setCheckState(Qt.Checked)
 
@@ -440,7 +464,9 @@ class EditTimetableDialog(QDialog):
         self._db_cursor.commit()
 
     def changed_delay(self, item : QLineEdit, st_id, r_id, t_id, sort_ord):
-        number = item.text()
+        number = item
+        if type(number) is not str:
+            number = number.text()
         reg = re.compile(r"^\d+$")
         all_matches = re.fullmatch(reg, number)
         if all_matches is not None:
@@ -456,6 +482,27 @@ class EditTimetableDialog(QDialog):
             widget.setStyleSheet("background-color : #FFFFFF")
         else:
             widget = self.passage_stations_tbl.cellWidget(sort_ord, 2)
+            widget.setStyleSheet("background-color : #FFCCCC")
+
+    def changed_minutes(self, item : QLineEdit, st_id, r_id, t_id, sort_ord):
+        number = item
+        if type(number) is not str:
+            number = number.text()
+        reg = re.compile(r"^\d+$")
+        all_matches = re.fullmatch(reg, number)
+        if all_matches is not None:
+            # query = """UPDATE timetable SET delay = ? WHERE passage_id IN (
+            # SELECT p.passage_id FROM passages p INNER JOIN stations_to_routes str on p.passage_first_station_to_route_id = str.id
+            # INNER JOIN timetable t on p.passage_id = t.passage_id
+            # WHERE route_id = ? AND p.train_id = ? AND t.station_id = ?)"""
+
+            query = """UPDATE timetable SET minutes_to_next_station = ? WHERE route_id = ? AND train_id = ? AND station_id = ?"""
+            self._db_cursor.execute(query, int(number), r_id, t_id, st_id)
+            self._db_cursor.commit()
+            widget = self.passage_stations_tbl.cellWidget(sort_ord, 3)
+            widget.setStyleSheet("background-color : #FFFFFF")
+        else:
+            widget = self.passage_stations_tbl.cellWidget(sort_ord, 3)
             widget.setStyleSheet("background-color : #FFCCCC")
 
 
@@ -477,6 +524,104 @@ class EditTimetableDialog(QDialog):
     ##################################
     ##################################
     ##################################
+
+
+class EditTrainDialog(QDialog):
+    def __init__(self, db_cursor: pyodbc.Cursor, train_id, train_number, parent=None):
+        super().__init__(parent)
+        loadUi("edit_train_dialog.ui", self)
+        self.train_number.setText(train_number)
+        self.statusBar = QStatusBar(self)
+        self.verticalLayout_3.addWidget(self.statusBar)
+        self._db_cursor = db_cursor
+        self._train_id = train_id
+        self._train_num = train_number
+        self.__update_comboBox()
+        self.__fill_table_of_carriages()
+        self.update_table_btn.clicked.connect(self.__fill_table_of_carriages)
+        self.addNewCarriageBtn.clicked.connect(self.__add_carriage)
+        self.update_carriages_btn.clicked.connect(self.__update_comboBox)
+        self.save_changes_btn.clicked.connect(self.close)
+
+    def __update_comboBox(self):
+        self.comboBox_carriages.clear()
+        query_carriages = """SELECT c.carriage_id, c.carriage_name, ct.type_name FROM carriages_to_train ctt 
+            RIGHT JOIN carriages c on ctt.carriage_id = c.carriage_id
+            INNER JOIN carriage_types ct on c.carriage_type = ct.id
+            WHERE ctt.id IS NULL"""
+        carriages = self._db_cursor.execute(query_carriages).fetchall()
+        for carriage_id, name, type in carriages:
+            self.comboBox_carriages.addItem("{}({})".format(name,type), int(carriage_id))
+        self.statusBar.showMessage("Выпадающий список обновился",3000)
+
+
+
+    def __fill_table_of_carriages(self):
+        self.carriages_of_train.setRowCount(0)
+        self.carriages_of_train.setColumnCount(3)
+        self.carriages_of_train.setHorizontalHeaderLabels([
+            "Вагон №", "Тип вагона", ""])
+        header = self.carriages_of_train.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        header.setCascadingSectionResizes(True)
+        header.setDefaultSectionSize(140)
+        header.setHighlightSections(False)
+        header.setMinimumSectionSize(100)
+        header.setSortIndicatorShown(False)
+        header.setStretchLastSection(False)
+
+        current_carriages = self._db_cursor.execute("""SELECT ctt.carriage_id, c.carriage_name, ct.type_name FROM carriages_to_train ctt
+            INNER JOIN carriages c ON ctt.carriage_id = c.carriage_id
+            INNER JOIN carriage_types ct ON c.carriage_type = ct.id WHERE train_id = ? ORDER BY order_num""",
+        self._train_id).fetchall()
+
+        i = 0
+        self.carriages_of_train.setRowCount(len(current_carriages))
+        for carr_id, carr_name, carr_type in current_carriages:
+            carriage_name = QTableWidgetItem(carr_name)
+            carriage_name.setFlags((carriage_name.flags() | QtCore.Qt.CustomizeWindowHint) &
+                                  ~QtCore.Qt.ItemIsEditable)
+            self.carriages_of_train.setItem(i, 0, carriage_name)
+
+            type = QTableWidgetItem(carr_type)
+            type.setFlags((type.flags() | QtCore.Qt.CustomizeWindowHint) &
+                          ~QtCore.Qt.ItemIsEditable)
+            self.carriages_of_train.setItem(i, 1, type)
+
+            del_btn = QPushButton("Удалить",self)
+            del_btn.clicked.connect(lambda checked, carr_id=carr_id, tbl_row=i: self.__delete_carriage(carr_id, tbl_row))
+
+            self.carriages_of_train.setCellWidget(i, 2, del_btn)
+            i += 1
+        self.statusBar.showMessage("Таблица обновилась", 3000)
+
+    def __delete_carriage(self, carriage_id, tbl_row):
+        query_delete_carr = """DELETE FROM carriages_to_train ctt WHERE carriage_id=? AND train_id=?"""
+        query_update_order = """UPDATE carriages_to_train ctt SET ctt.order_num=(
+               SELECT (@row_number:=@row_number + 1) AS num FROM (SELECT @row_number:=0 as tmp ) as rn)
+               where ctt.train_id=?"""
+        self._db_cursor.execute(query_delete_carr, carriage_id, self._train_id)
+        self._db_cursor.execute(query_update_order, self._train_id)
+        self._db_cursor.commit()
+        self.carriages_of_train.removeRow(tbl_row)
+        self.__update_comboBox()
+
+    def __add_carriage(self):
+        # curr_row = self.carriages_of_train.currentRow()
+        curr_row = self.carriages_of_train.rowCount()
+        if self.carriages_of_train.rowCount() == 0:
+            curr_row = 0
+        if curr_row == -1:
+            curr_row = self.carriages_of_train.rowCount()
+        carriage_index = self.comboBox_carriages.currentIndex()
+        carriage_name = self.comboBox_carriages.itemText(carriage_index)
+        carriage_id = self.comboBox_carriages.itemData(carriage_index)
+        print("Will INSERT to {} ROW this: ({},{})".format(curr_row, carriage_id,carriage_name))
+        self._db_cursor.execute("""INSERT INTO carriages_to_train (order_num, train_id, carriage_id)
+            VALUES (?,?,?)""", curr_row+1, self._train_id, carriage_id)
+        self._db_cursor.commit()
+        self.__fill_table_of_carriages()
+        self.__update_comboBox()
 
 
 class MainWindowUI(QWidget):
@@ -591,17 +736,20 @@ class MainWindowUI(QWidget):
         self.back_button_on_timetable_Page.clicked.connect(lambda: self.stackedWidget.setCurrentIndex(0))
         self.back_button_on_trains_Page.clicked.connect(lambda: self.stackedWidget.setCurrentIndex(0))
         self.back_button_on_routePage.clicked.connect(lambda: self.stackedWidget.setCurrentIndex(0))
-
+        self.back_button_on_purchase_Page.clicked.connect(lambda: self.stackedWidget.setCurrentIndex(0))
         ##########################
         # TODO PAGE : Route Managment
         ##########################
 
     def init2(self, mainApp):
         self.__main_app = mainApp
+
         self.update_routesForm.clicked.connect(self.__main_app.route_manager.update_routes)
         self.add_routes_btn.clicked.connect(self.__add_route)
+
         self.add_new_train_btn.clicked.connect(self.__add_train)
         self.update_trains_table_btn.clicked.connect(self.__main_app.trains_manager.update_trains_table)
+
         self.add_passage_btn.clicked.connect(self.__add_passage)
         self.update_passages_btn.clicked.connect(self.__main_app.timetable_manager.update_timetable_table)
 
@@ -628,9 +776,8 @@ class MainWindowUI(QWidget):
 
     @QtCore.pyqtSlot()
     def open_ticket_purchase_page(self):
-        index = self.ui.stackedWidget.indexOf(self.buy_tickets_page)
+        index = self.stackedWidget.indexOf(self.buy_tickets_page)
         self.stackedWidget.setCurrentIndex(index)
-        pass
 
     @QtCore.pyqtSlot()
     def open_trains_managment_page(self):
@@ -871,14 +1018,28 @@ class MainWindowUI(QWidget):
             # self.admin_timetable.setCellWidget(i, 4, edit_route_passages_button)
             i += 1
 
+    #########################################
+    ######################################
+    # TODO СТРАНИЦА ПОКУПКИ БИЛЕТОВ
+    ###################################\
+
+
+
+
+
+    #########################################
+    ######################################
+    ###################################\
+
 
 class ApplicationBack():
     def __init__(self, user_interface: MainWindowUI):
         self._ui = user_interface  # MAIN APPLICATION INTERFACE
         self._ui.__main_app = self
-        self.route_manager = Routes_Manager(self._ui, cursor, self)
-        self.trains_manager = Trains_Manager(self._ui, cursor, self)
-        self.timetable_manager = TimetableManager(self._ui, cursor, self)
+        self.route_manager = RoutesManager.Routes_Manager(self._ui, cursor, self)
+        self.trains_manager = TrainsManager.Trains_Manager(self._ui, cursor, self)
+        self.timetable_manager = TimetableManager.Timetable_Manager(self._ui, cursor, self)
+        self.purchase_manager = PurchaseManager.Purchase_Manager(self._ui, cursor, self)
         self._ui.init2(self)
 
     def start_route_managment(self):

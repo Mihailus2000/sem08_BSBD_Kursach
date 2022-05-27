@@ -252,7 +252,7 @@ from PyQt5 import QtCore, QtGui
 #         print("[{}] : {}, {}".format(index, self.all_stationsBox.currentText(), self.all_stationsBox.currentData()))
 from PyQt5.QtWidgets import QMessageBox
 
-from main import EditRouteDialog
+import main_app
 import pyodbc
 
 
@@ -303,7 +303,7 @@ class Routes_Manager():
 
     @QtCore.pyqtSlot(int)
     def open_edit_route_Dialog(self, route_id):
-        self.editRoute_dialog = EditRouteDialog(route_id,self,self._db_cursor,self._ui)
+        self.editRoute_dialog = main_app.EditRouteDialog(route_id, self, self._db_cursor, self._ui)
         self.editRoute_dialog.fillStatinosBox()
         self.editRoute_dialog.fill_stations_table(self.get_stations_of_route(route_id))
         self.editRoute_dialog.exec_()

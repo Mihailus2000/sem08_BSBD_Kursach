@@ -7,14 +7,16 @@ import pyodbc
 # from PyQt5.QtWidgets import *
 # from PyQt5.uic import loadUi, pyuic
 from PyQt5 import QtCore, QtGui
+from PyQt5.QtWidgets import QMessageBox
 
+import main_app
 
 
 
 class Trains_Manager():
 
     def __init__(self, user_interface, db_cursor, mainApp):
-        # self.editRoute_dialog = None
+        self.editTrain_dialog = None
         self._mainApp = mainApp
         self._ui = user_interface
         self._db_cursor = db_cursor
@@ -33,29 +35,25 @@ class Trains_Manager():
 
     @QtCore.pyqtSlot(int)
     def delete_train(self, train_id):
-        self._db_cursor.execute("""DELETE FROM trains WHERE trains.id = ?""", train_id)
-        now_trains = self.get_all_trains()
-        self._ui.fill_trainsManagment_table(now_trains)
-
+        try:
+            self._db_cursor.execute("""DELETE FROM trains WHERE trains.id = ?""", train_id)
+            now_trains = self.get_all_trains()
+            self._ui.fill_trainsManagment_table(now_trains)
+        except pyodbc.Error as err:
+            self._db_cursor.rollback()
+            QMessageBox.critical(self.editTrain_dialog, "Error!",
+                 "Can't delete train because of:\n{}".format(err.args))
 
     #########################
     #######################
     ######################
 
-    # def get_stations_of_route(self, route_id):
-    #     curr_stations = self._db_cursor.execute("""SELECT str.id, station_name, sort_order FROM stations_to_routes str
-    #                                     INNER JOIN stations s ON str.station_id = s.station_id  WHERE route_id = ?""",
-    #                                             route_id).fetchall()
-    #     return curr_stations
 
     @QtCore.pyqtSlot(int)
     def open_edit_train_Dialog(self, train_id):
-        # self.editRoute_dialog = EditRouteDialog(route_id,self,self._db_cursor,self._ui)
-        # self.editRoute_dialog.fillStatinosBox()
-        # self.editRoute_dialog.fill_stations_table(self.get_stations_of_route(route_id))
-        # self.editRoute_dialog.exec_()
-        print("HERE OPENS Dialog TRAIN EDITOR") # TODO Добавить создание диалогового окна
-        pass
+        train_name = self._db_cursor.execute("""SELECT number FROM trains WHERE id = ?""", train_id).fetchone()[0]
+        self.editTrain_dialog = main_app.EditTrainDialog(self._db_cursor, train_id, train_name, self._ui)
+        self.editTrain_dialog.exec_()
 
 
     # @QtCore.pyqtSlot(int)

@@ -7,14 +7,14 @@
 # from PyQt5.QtWidgets import *
 # from PyQt5.uic import loadUi, pyuic
 from PyQt5 import QtCore, QtGui
+import main_app
 
 
 
-
-class TimetableManager:
+class Timetable_Manager:
 
     def __init__(self, user_interface, db_cursor, mainApp):
-        # self.editRoute_dialog = None
+        self.edit_passage_dialog = None
         self._mainApp = mainApp
         self._ui = user_interface
         self._db_cursor = db_cursor
@@ -48,10 +48,9 @@ class TimetableManager:
 
     @QtCore.pyqtSlot(int)
     def open_edit_passage_Dialog(self, train_id, route_id):
-        # self.editRoute_dialog = EditRouteDialog(route_id,self,self._db_cursor,self._ui)
-        # self.editRoute_dialog.fillStatinosBox()
-        # self.editRoute_dialog.fill_stations_table(self.get_stations_of_route(route_id))
-        # self.editRoute_dialog.exec_()
+        self.edit_passage_dialog = main_app.EditTimetableDialog(self._db_cursor,self._ui)
+        self.edit_passage_dialog.set_route_and_train_manual(route_id,train_id)
+        self.edit_passage_dialog.exec_()
         print("HERE OPENS Dialog PASSAGE TIMETABLE EDITOR") # TODO Добавить создание диалогового окна
         pass
 

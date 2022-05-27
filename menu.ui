@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>594</width>
-    <height>441</height>
+    <width>756</width>
+    <height>658</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -47,7 +47,7 @@
       <string notr="true"/>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>5</number>
      </property>
      <widget class="QWidget" name="main_page">
       <property name="styleSheet">
@@ -229,7 +229,7 @@ border-radius:20</string>
           <item row="2" column="0">
            <widget class="QPushButton" name="buy_tickets_menu_btn">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -1121,8 +1121,8 @@ border-radius:20</string>
       </layout>
      </widget>
      <widget class="QWidget" name="registration_page">
-      <layout class="QVBoxLayout" name="verticalLayout_13">
-       <item alignment="Qt::AlignLeft">
+      <layout class="QVBoxLayout" name="verticalLayout_4">
+       <item>
         <widget class="QWidget" name="widget_8" native="true">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -1130,8 +1130,27 @@ border-radius:20</string>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_11">
-          <item alignment="Qt::AlignHCenter">
+         <layout class="QHBoxLayout" name="horizontalLayout_10">
+          <item>
+           <widget class="QPushButton" name="back_button_on_registration_Page">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>НАЗАД</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QLabel" name="label_13">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -1396,8 +1415,27 @@ border-radius:20</string>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_14">
-          <item alignment="Qt::AlignLeft">
+         <layout class="QHBoxLayout" name="horizontalLayout_11">
+          <item>
+           <widget class="QPushButton" name="back_button_on_purchase_Page">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>НАЗАД</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QLabel" name="label_25">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
@@ -1453,7 +1491,7 @@ border-radius:20</string>
             </widget>
            </item>
            <item row="0" column="1">
-            <widget class="QComboBox" name="comboBox">
+            <widget class="QComboBox" name="choose_from_station_cBox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
                <horstretch>0</horstretch>
@@ -1493,7 +1531,7 @@ border-radius:20</string>
             </widget>
            </item>
            <item row="1" column="1">
-            <widget class="QComboBox" name="comboBox_2">
+            <widget class="QComboBox" name="choose_to_station_cBox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                <horstretch>0</horstretch>
@@ -1533,18 +1571,9 @@ border-radius:20</string>
             </widget>
            </item>
            <item row="2" column="1">
-            <widget class="QComboBox" name="comboBox_3">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="minimumSize">
-              <size>
-               <width>130</width>
-               <height>0</height>
-              </size>
+            <widget class="QDateEdit" name="choose_date_travel">
+             <property name="calendarPopup">
+              <bool>true</bool>
              </property>
             </widget>
            </item>
@@ -1567,9 +1596,9 @@ border-radius:20</string>
           </spacer>
          </item>
          <item>
-          <widget class="QPushButton" name="pushButton_7">
+          <widget class="QPushButton" name="find_availiable_passages_btn">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
@@ -1589,9 +1618,6 @@ border-radius:20</string>
           <spacer name="horizontalSpacer_8">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeType">
-            <enum>QSizePolicy::Expanding</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -1635,8 +1661,27 @@ border-radius:20</string>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_9">
-          <item alignment="Qt::AlignLeft">
+         <layout class="QHBoxLayout" name="horizontalLayout_12">
+          <item>
+           <widget class="QPushButton" name="pushButton_3">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>НАЗАД</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QLabel" name="label_2">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -1647,13 +1692,16 @@ border-radius:20</string>
             <property name="font">
              <font>
               <family>Arial</family>
-              <pointsize>22</pointsize>
+              <pointsize>16</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
             </property>
             <property name="text">
              <string>Авторизация</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
             </property>
            </widget>
           </item>
