@@ -388,7 +388,7 @@ class EditTimetableDialog(QDialog):
                                      : self.changed_delay(item, st_id, r_id, t_id, sort))
             self.passage_stations_tbl.setCellWidget(sort_order-1, 2, delta)
 
-            min = QLineEdit(str(delay))
+            min = QLineEdit(str(minutes))
             min.editingFinished.connect(
                 lambda item=min, st_id=st_id, r_id=route_id, t_id=train_id, sort=sort_order - 1
                 : self.changed_minutes(item, st_id, r_id, t_id, sort))
@@ -426,6 +426,12 @@ class EditTimetableDialog(QDialog):
             delta.textEdited.connect(lambda item=delta, st_id=st_id, r_id=route_id, t_id=train_id, sort=tbl_row
                                      : self.changed_delay(item, st_id, r_id, t_id, sort))
             self.passage_stations_tbl.setCellWidget(tbl_row, 2, delta)
+
+            min = QLineEdit(str(0))
+            min.editingFinished.connect(
+                lambda item=min, st_id=st_id, r_id=route_id, t_id=train_id, sort=tbl_row
+                : self.changed_minutes(item, st_id, r_id, t_id, sort))
+            self.passage_stations_tbl.setCellWidget(tbl_row, 3, min)
 
             self._db_cursor.execute(insert_query, route_id, train_id, st_id, db_time, db_delta)  # TODO try: catch
         else:
