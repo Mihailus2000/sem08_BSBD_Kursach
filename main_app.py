@@ -1058,6 +1058,15 @@ if __name__ == "__main__":
     # Initialize connection to DB
     ##########################################
     # driver = "ODBC Driver 17 for SQL Server"
+
+
+    arr = [[2, 2], [3, 3]]
+    arr[:][1]
+
+
+
+
+
     driver = "MySQL ODBC 8.0 Unicode Driver"
     server_name = "localhost"
     database = "kursach"
