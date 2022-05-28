@@ -9,7 +9,7 @@ import pyodbc
 # from PyQt5.uic import loadUi, pyuic
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import QDate
-from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QMessageBox, QHeaderView
 
 import main_app
 from prettytable import PrettyTable
@@ -53,12 +53,17 @@ class TrainInfo:
 
     def __init__(self, new_train_id):
         self.train_id = new_train_id
-        self.carriges: dict[
-            TrainInfo.CarriageInfo] = {}  # key = ordnum, data = class TODO Определиться - ключ это п.н. или ID
+        self.train_routes = {}
+        # self.carriges: dict[
+        #     TrainInfo.CarriageInfo] = {}  # key = ordnum, data = class TODO Определиться - ключ это п.н. или ID
 
-    def add_carriage(self, id, nm, ord, T_id, T_nm):
+    def add_route(self, r_id):
+        self.train_routes[r_id] = {}
+
+    def add_carriage(self,r_id, id, nm, ord, T_id, T_nm):
         new_carr = self.CarriageInfo(id, nm, ord, T_id, T_nm)
-        self.carriges[ord] = new_carr
+        self.train_routes[r_id][ord] = new_carr
+        # self.carriges[ord] = new_carr
         return new_carr
 
     # def set_carrInfo(self, carr_ord, sTnm_ID, sT_nm, total_seats, buzy_seats):
@@ -159,55 +164,80 @@ class Purchase_Manager():
             #     print("{} | {}".format(st_id, s_ord))
 
             # Все места в вагонах и ЗАКАЗЫ
-            query2 = """select t.id, t.number, c.carriage_id, c.carriage_name, ctt.order_num, ct.id, ct.type_name, 
-                                        st.seat_type_id, st.type_name,  COUNT(s.id) total,
+            query2 = """select t.id, t.number, tt.route_id, r.name, c.carriage_id, c.carriage_name, ctt.order_num, 
+                            ct.id, ct.type_name, st.seat_type_id, st.type_name,  COUNT(s.id) total,
                    (select  count(o.order_id) from `order` o
                     left join seats s on s.id=o.seat_id
                      where o.date_from = (str_to_date(?,'%d.%m.%Y'))
                         and (o.station_from_id in ({}) or o.station_to_id in({}))
-                        and t.id=train_id and   c.carriage_id=carriage_id and st.seat_type_id=seat_type
-                    group by train_id, carriage_id, seat_type) busy
+                    and t.id=train_id and tt.train_id=ctt.train_id and tt.route_id=o.route_id and c.carriage_id=carriage_id and st.seat_type_id=seat_type
+                    group by train_id, route_id, carriage_id, seat_type) busy
                        from trains t
+                    left join (select route_id, train_id FROM timetable tt group by train_id, route_id) tt on tt.train_id = t.id
+                    left join routes r on tt.route_id = r.route_id
                     left join carriages_to_train ctt on t.id = ctt.train_id
                     left join carriages c on ctt.carriage_id = c.carriage_id
                     left join carriage_types ct on ct.id = c.carriage_type
                     left join seats s on s.carriage_type = ct.id
                     left join seat_types st on s.seat_type = st.seat_type_id
-                    group by t.id, c.carriage_id, s.carriage_type, s.seat_type;""".format(from_ids, to_ids)
+                    group by t.id, c.carriage_id, s.carriage_type, s.seat_type, tt.route_id;""".format(from_ids, to_ids)
 
             res2 = cursor.execute(query2, selected_date).fetchall()
             output_table = PrettyTable()
-            output_table.field_names = ["Train_ID", "Train_num", "Carr_ID", "Carr_name", "Carr_ordnum",
+            output_table.field_names = ["Train_ID", "Train_num", "Route_ID", "Route_nm", "Carr_ID", "Carr_name", "Carr_ordnum",
                                         "CarrT_ID", "CarrT_name", "SeatT_ID", "SeatT_name", "Total_seats", "Buzy_seats"]
             output_table.add_rows(res2)
-            parse_tr_ID, parse_carr_ID, parse_sT_ID = None, None, None
+            parse_tr_ID, parse_route_ID, parse_carr_ID, parse_sT_ID = None, None, None, None
             parse_carr, parse_train = None, None
             all_trains = []
-            for train_ID, train_num, carr_ID, carr_name, carr_ordnum, carrT_ID, carrT_name, seatT_ID, seatT_name, \
-                                                                            total_seats, buzy_seats in res2:
+            for train_ID, train_num, route_ID, route_nm, carr_ID, carr_name, carr_ordnum, carrT_ID, carrT_name, \
+                                                    seatT_ID, seatT_name, total_seats, buzy_seats in res2:
                 # if parse_tr_ID is None or parse_carr_ID is None or parse_sT_ID is None:
                 #     parse_tr_ID = train_ID
                 #     parse_carr_ID = carr_ID
                 #     parse_sT_ID = seatT_ID
                 if parse_tr_ID == train_ID:
-                    if parse_carr_ID == carr_ID:
-                        parse_carr.add_type(seatT_ID, seatT_name, total_seats, buzy_seats)
+                    if parse_route_ID == route_ID:
+                        if parse_carr_ID == carr_ID:
+                            parse_carr.add_type(seatT_ID, seatT_name, total_seats, buzy_seats)
+                        else:
+                            parse_carr_ID = carr_ID  # 3
+                            parse_carr = parse_train.add_carriage(route_ID,carr_ID, carr_name, carr_ordnum, carrT_ID, carrT_name)
+                            parse_carr.add_type(seatT_ID, seatT_name, total_seats, buzy_seats)
                     else:
-                        parse_carr_ID = carr_ID  # 2
-                        parse_carr = parse_train.add_carriage(carr_ID, carr_name, carr_ordnum, carrT_ID, carrT_name)
-                        parse_carr.add_type(seatT_ID, seatT_name, total_seats, buzy_seats)
+                        parse_route_ID = route_ID # 2
+                        parse_train.add_route(route_ID)
+                        parse_carr = parse_train.add_carriage(route_ID, carr_ID, carr_name, carr_ordnum, carrT_ID,
+                                                              carrT_name)
                 else:
                     parse_tr_ID = train_ID  # 1
-                    parse_carr_ID = carr_ID  # 2
+                    parse_route_ID = route_ID # 2
+                    parse_carr_ID = carr_ID  # 3
                     parse_train = TrainInfo(train_ID)
                     all_trains.append(parse_train)
-                    parse_carr = parse_train.add_carriage(carr_ID, carr_name, carr_ordnum, carrT_ID, carrT_name)
+                    parse_train.add_route(route_ID)
+                    parse_carr = parse_train.add_carriage(route_ID, carr_ID, carr_name, carr_ordnum, carrT_ID, carrT_name)
                     parse_carr.add_type(seatT_ID, seatT_name, total_seats, buzy_seats)
 
             print(output_table)
 
         if mng.is_ok:
-            pass
+            self._ui.AllRoutesForBuy_tbl.setRowCount(0)
+            self._ui.AllRoutesForBuy_tbl.setColumnCount(5)
+            self._ui.AllRoutesForBuy_tbl.setHorizontalHeaderLabels([
+                "Поезд №", "Отправление", "Прибытие", "Свободно"])
+            header = self._ui.AllRoutesForBuy_tbl.horizontalHeader()
+            header.setSectionResizeMode(QHeaderView.Stretch)
+            header.setCascadingSectionResizes(True)
+            header.setDefaultSectionSize(140)
+            header.setHighlightSections(False)
+            header.setMinimumSectionSize(100)
+            header.setSortIndicatorShown(False)
+            header.setStretchLastSection(False)
+
+            for train in all_trains:
+                tr_id = train.train_id
+
 
     # def update_trains_table(self):
     #     trains = self.get_all_trains()
