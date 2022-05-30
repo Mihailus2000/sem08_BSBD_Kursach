@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>492</width>
-    <height>379</height>
+    <width>785</width>
+    <height>638</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -39,13 +39,27 @@
        <widget class="QLabel" name="label_3">
         <property name="font">
          <font>
+          <pointsize>15</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Редактирование маршрута:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="editing_route_lbl">
+        <property name="font">
+         <font>
           <pointsize>14</pointsize>
           <weight>75</weight>
           <bold>true</bold>
          </font>
         </property>
         <property name="text">
-         <string>Редактирование маршрута</string>
+         <string>                            </string>
         </property>
        </widget>
       </item>
@@ -66,37 +80,16 @@
     </widget>
    </item>
    <item>
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout">
-       <item>
-        <widget class="QLabel" name="label">
-         <property name="text">
-          <string>Маршрут</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="Route_name_label">
-         <property name="text">
-          <string>TextLabel</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <spacer name="verticalSpacer">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>40</height>
-        </size>
-       </property>
-      </spacer>
+      <layout class="QHBoxLayout" name="horizontalLayout"/>
      </item>
     </layout>
    </item>
@@ -104,7 +97,7 @@
     <widget class="QLabel" name="label_5">
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <pointsize>14</pointsize>
        <weight>75</weight>
        <bold>true</bold>
       </font>
@@ -120,7 +113,7 @@
       <widget class="QLabel" name="label_7">
        <property name="font">
         <font>
-         <pointsize>10</pointsize>
+         <pointsize>13</pointsize>
          <weight>75</weight>
          <bold>true</bold>
         </font>
@@ -132,18 +125,36 @@
      </item>
      <item>
       <widget class="QComboBox" name="all_stationsBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="minimumSize">
         <size>
          <width>130</width>
          <height>25</height>
         </size>
        </property>
+       <property name="font">
+        <font>
+         <pointsize>14</pointsize>
+        </font>
+       </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="add_station_btn">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
        <property name="text">
-        <string>PushButton</string>
+        <string>Добавить</string>
        </property>
       </widget>
      </item>

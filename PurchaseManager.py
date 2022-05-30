@@ -9,9 +9,10 @@ import pyodbc
 # from PyQt5.uic import loadUi, pyuic
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import QDate
-from PyQt5.QtGui import QTextDocument
+from PyQt5.QtGui import QTextDocument, QPixmap
 from PyQt5.QtWidgets import QMessageBox, QHeaderView, QTableWidgetItem, QPushButton, QTextEdit, QAbstractScrollArea, \
-    QSizePolicy
+    QSizePolicy, QLabel, QDialog
+from PyQt5.uic import loadUi
 
 import main_app
 from prettytable import PrettyTable
@@ -34,6 +35,7 @@ class MysqlConMen:
             QMessageBox.critical(self.__ui, "MySQL Exception!",
                                  "What's happend:\n{}".format(exc_val.args))
             return True
+        self.__cursor.commit()
         return True
 
     @property
@@ -77,6 +79,57 @@ class TrainInfo:
     #################################
 
 
+class BuyTicketDialog(QDialog):
+    def __init__(self, route_id, train_id, tr_num, carr_id,  carr_num, seat_id, seat_num, db_cursor: pyodbc.Cursor,
+                 st_from_id, st_from_name, st_to_id, st_to_name, dt_from, dt_to, parent=None):
+        super().__init__(parent)
+        self._route_id = route_id
+        self._train_num = tr_num
+        self._train_id = train_id
+        self._carr_id = carr_id
+        self._carr_num = carr_num
+        self._seat_id = seat_id
+        self._seat_num = seat_num
+        self._st_from_id = st_from_id
+        self._st_to_id = st_to_id
+        self._st_from_nm = st_from_name
+        self._st_to_nm = st_to_name
+        self._dt_from = dt_from
+        self._dt_to = dt_to
+        self._date_from = dt_from.date()
+        loadUi("purchase_ticket_form.ui", self)
+        self._db_cursor = db_cursor
+        self._FIO = None
+        self.__set_fields()
+        self.finish_ticket_purchase_btn.clicked.connect(self.__finish_purchase)
+        self.FIO_input_field.editingFinished.connect(self.__changed_FIO_field)
+
+    def __finish_purchase(self):
+        mng = MysqlConMen(self._db_cursor, self)
+        with mng as cursor:
+            self._db_cursor.execute("""INSERT INTO `order` (train_id, route_id, carriage_id, seat_id, FIO, station_from_id,
+             station_to_id, date_from, date_train_from)
+                VALUES (?,?,?,?,?,?,?,?,?)""", self._train_id, self._route_id, self._carr_id, self._seat_id, self._FIO,
+                                    self._st_from_id, self._st_to_id, self._date_from, self._date_from)
+        if mng.is_ok:
+            self.accept()
+        else:
+            self.reject()
+
+
+    def __set_fields(self):
+        self.train_number_field.setText(str(self._train_num))
+        self.carriage_order_num_field.setText(str(self._carr_num))
+        self.seat_number_field.setText(str(self._seat_num))
+        self.departure_station_field.setText(str(self._st_from_nm))
+        self.arrival_station_field.setText(str(self._st_to_nm))
+        self.departure_datetime_field.setText(str(self._dt_from))
+        self.arrival_datetime_field.setText(str(self._dt_to))
+
+    def __changed_FIO_field(self):
+        self._FIO = self.FIO_input_field.text() # TODO Добавить проверку ФИО
+
+
 class Purchase_Manager():
 
     def __init__(self, user_interface, db_cursor, mainApp):
@@ -84,8 +137,9 @@ class Purchase_Manager():
         self._mainApp = mainApp
         self._ui = user_interface
         self._db_cursor = db_cursor
-        self._station_from_id: QDate
+        self._station_from_id = None
         self._station_to_id = None
+        self._seat_choosen = None
         self._travel_date = QDate().currentDate()
         self.__fill_stations_cbox()
         self._ui.find_availiable_passages_btn.clicked.connect(self.__find_passages)
@@ -94,12 +148,44 @@ class Purchase_Manager():
         self._ui.choose_to_station_cBox.currentIndexChanged.connect(self.__changed_station_to)
         self._ui.choose_date_travel.dateChanged.connect(self.__changed_travel_date)
         self._ui.back_to_train_choosing_btn.clicked.connect(self.__open_back_passages_table)
+        self._ui.back_to_carriage_choosing_btn.clicked.connect(self.__open_back_carriages_table)
+        self._ui.choose_seat_comboBox.currentIndexChanged.connect(self.__changed_seat)
+        self._ui.add_seat_purchase_btn.clicked.connect(self.__openSeatBuying)
 
         self._ui.choose_carriage_purchase_back.setVisible(False)
+        self._ui.choose_seat_purchase_back.setVisible(False)
         self._ui.AllRoutesForBuy_tbl.setRowCount(0)
         self._ui.AllRoutesForBuy_tbl.setColumnCount(6)
         self._ui.AllRoutesForBuy_tbl.setHorizontalHeaderLabels([
             "Поезд №", "Отправление", "Время в пути", "Прибытие", "Свободно", ""])
+
+        self._route_id = None
+        self._train_id = None
+        self._tr_num = None
+        self._carr_id = None
+        self._carr_num = None
+        self._seat_id = None
+        self._seat_num = None
+        self._st_from_name = None
+        self._st_to_name = None
+        self._dt_from = None
+        self._dt_to = None
+
+    def __openSeatBuying(self):
+        buy_ticket_dialog = BuyTicketDialog(self._route_id, self._train_id, self._tr_num, self._carr_id, self._carr_num,
+                                            self._seat_id, self._seat_num, self._db_cursor, self._station_from_id,
+                                            self._st_from_name, self._station_to_id, self._st_to_name, self._dt_from,
+                                            self._dt_to, self._ui)
+        if buy_ticket_dialog.exec_():
+            print("OK")
+            pass
+        else:
+            print("NOT OK")
+            pass
+        # if addRoute_dialog.exec_():
+        #     new_name: str = addRoute_dialog.new_route_name
+        #     new_number: str = addRoute_dialog.new_route_number
+
 
     def __check_if_input_ok(self):
         if self._ui.choose_from_station_cBox.currentData() != -1 and self._ui.choose_to_station_cBox.currentData() != -1:
@@ -109,15 +195,25 @@ class Purchase_Manager():
 
     def __changed_station_from(self, new_index):
         self._station_from_id = self._ui.choose_from_station_cBox.currentData()
-        station_from_name = self._ui.choose_from_station_cBox.currentText()
-        print("Choose FROM station: id={}|Name={}".format(self._station_from_id, station_from_name))
+        self._st_from_name = self._ui.choose_from_station_cBox.currentText()
+        print("Choose FROM station: id={}|Name={}".format(self._station_from_id, self._st_from_name))
         self.__check_if_input_ok()
 
     def __changed_station_to(self, new_index):
         self._station_to_id = self._ui.choose_to_station_cBox.currentData()
-        station_to_name = self._ui.choose_to_station_cBox.currentText()
-        print("Choose TO station: id={}|Name={}".format(self._station_to_id, station_to_name))
+        self._st_to_name = self._ui.choose_to_station_cBox.currentText()
+        print("Choose TO station: id={}|Name={}".format(self._station_to_id, self._st_to_name))
         self.__check_if_input_ok()
+
+    def __changed_seat(self, new_index):
+        self._seat_id = self._ui.choose_seat_comboBox.currentData()
+        self._seat_num = self._ui.choose_seat_comboBox.currentText()
+        if self._seat_id == -1:
+            self._ui.add_seat_purchase_btn.setEnabled(False)
+            return
+        self._ui.add_seat_purchase_btn.setEnabled(True)
+
+
 
     def __changed_travel_date(self, new_date):
         self._travel_date = new_date
@@ -147,11 +243,58 @@ class Purchase_Manager():
         self._ui.choose_train_purchase_back.setVisible(True)
         self._ui.choose_carriage_purchase_back.setVisible(False)
 
+    def __open_back_carriages_table(self):
+        self._ui.choose_carriage_purchase_back.setVisible(True)
+        self._ui.choose_seat_purchase_back.setVisible(False)
+
+    def __open_seats_table(self, datetime_from, datetime_to,carr_ID, carr_ordnum, train_data: TrainInfo, carr_type_ID, to_ids, from_ids):
+        self._ui.choose_carriage_purchase_back.setVisible(False)
+        self._ui.choose_seat_purchase_back.setVisible(True)
+        self._ui.carriage_label_for_purchasepage_carriages.setText(str(carr_ordnum))
+        self._ui.datetime_departure_lbl_2.setText(str(datetime_from))
+        self._ui.datetime_arriaval_lbl_2.setText(str(datetime_to))
+
+        self._carr_num = carr_ordnum
+        self._carr_id = carr_ID
 
 
+        match carr_type_ID:
+            case 1:  # Плацкарт
+                pixmap = QPixmap("platscart_carriage.jpg")
+                self._ui.train_picture.setPixmap(pixmap.scaled(400,150,QtCore.Qt.AspectRatioMode.KeepAspectRatio))
+            case 2:  # Купе
+                self._ui.train_picture.setPixmap(QPixmap(r'C:\Users\mihail\Documents\МГТУ_КУРСАЧ_БСБД\images\platscart_carriage.jpg').scaled(400, 100))
+            case 3:  # Сидячий
+                self._ui.train_picture.setPixmap(QPixmap(r'C:\Users\mihail\Documents\МГТУ_КУРСАЧ_БСБД\images\platscart_carriage.jpg').scaled(400, 100,
+                                                                    QtCore.Qt.AspectRatioMode.KeepAspectRatio))
 
+        find_free_seats_query="""select s.id, s.number, st.type_name/*st.seat_type_id, st.type_name, o.seat_id*/
+                    from (select p.train_id from passages p where p.day_of_week = weekday(str_to_date(?,'%d.%m.%Y'))) p
+                    inner join trains t on t.id = p.train_id
+                    inner join (select route_id, train_id FROM timetable tt group by train_id, route_id) tt on tt.train_id = t.id
+                    inner join routes r on tt.route_id = r.route_id
+                    inner join carriages_to_train ctt on t.id = ctt.train_id and ctt.carriage_id=?
+                    inner join carriages c on ctt.carriage_id = c.carriage_id
+                    inner join carriage_types ct on ct.id = c.carriage_type
+                    inner join seats s on s.carriage_type = ct.id
+                    inner join seat_types st on s.seat_type = st.seat_type_id
+                    left join (select *  from `order` o
+                     where o.date_from = (str_to_date(?,'%d.%m.%Y'))
+                    and (o.station_from_id in ({}) or o.station_to_id in({}))
+                    and o.train_id=? and o.carriage_id=?) o on o.train_id=t.id and o.carriage_id=ctt.carriage_id and o.seat_id=s.id
+                    where o.order_id IS NULL
+                    order by t.id, c.carriage_id, s.number""".format(from_ids, to_ids)
+        selected_date = self._ui.choose_date_travel.date().toString("dd.MM.yyyy")
+        self._ui.choose_seat_comboBox.clear()
+        mng = MysqlConMen(self._db_cursor, self._ui)
+        with mng as cursor:
+            free_seats = self._db_cursor.execute(find_free_seats_query, selected_date, carr_ID, selected_date, train_data.train_id, carr_ID).fetchall()
+            self._ui.choose_seat_comboBox.addItem("Не выбрано", -1)
+            for s_id, s_num, sT_nm in free_seats:
+                self._ui.choose_seat_comboBox.addItem("Место №{} ({})".format(s_num, sT_nm), s_id)
+            self._ui.choose_seat_comboBox.setCurrentIndex(0)
 
-    def __open_carriages_table(self, train_data: TrainInfo, datetime_from, datetime_to):
+    def __open_carriages_table(self, train_data: TrainInfo, datetime_from, datetime_to, to_ids, from_ids):
         self._ui.choose_train_purchase_back.setVisible(False)
         self._ui.choose_carriage_purchase_back.setVisible(True)
         self._ui.train_label_for_purchasepage_carriages.setText(train_data.train_name)
@@ -171,12 +314,18 @@ class Purchase_Manager():
         header.setSortIndicatorShown(False)
         header.setStretchLastSection(False)
 
+        self._route_id = train_data.route_id
+        self._train_id = train_data.train_id
+        self._tr_num = train_data.train_name
+        self._dt_from = datetime_from
+        self._dt_to = datetime_to
+
         carr_typenames = {}
         seatsT_nms = {}
         i = 0
         for carr_ord in train_data.carriges:
             carr_info = {}
-            carriage = train_data.carriges[carr_ord]
+            carriage: TrainInfo.CarriageInfo = train_data.carriges[carr_ord]
             T_id, T_name = carriage.type_id, carriage.type_name
             carr_typenames[T_id] = T_name
             for seat_Tnm_id in carriage.seat_types:
@@ -197,12 +346,12 @@ class Purchase_Manager():
 
             carriage_ordnum = QTableWidgetItem(str(carr_ord))
             carriage_ordnum.setFlags((carriage_ordnum.flags() | QtCore.Qt.CustomizeWindowHint) &
-                                   ~QtCore.Qt.ItemIsEditable)
+                                     ~QtCore.Qt.ItemIsEditable)
             self._ui.AllcarriagesForTrain_toBuy_tbl.setItem(i, 0, carriage_ordnum)
 
             carriage_typename = QTableWidgetItem(str(T_name))
             carriage_typename.setFlags((carriage_typename.flags() | QtCore.Qt.CustomizeWindowHint) &
-                                     ~QtCore.Qt.ItemIsEditable)
+                                       ~QtCore.Qt.ItemIsEditable)
             self._ui.AllcarriagesForTrain_toBuy_tbl.setItem(i, 1, carriage_typename)
 
             free_seats_disp = QTextEdit(self._ui)
@@ -215,7 +364,10 @@ class Purchase_Manager():
             self._ui.AllcarriagesForTrain_toBuy_tbl.setCellWidget(i, 2, free_seats_disp)
 
             select_seats_btn = QPushButton(text="Выбрать место", parent=self._ui)
-            # select_seats_btn.clicked.connect()
+            select_seats_btn.clicked.connect(lambda state, dt_from=datetime_from, dt_to=datetime_to,
+                                                    carr_ID=carriage.id, carr_ord=carr_ord,
+                                                    tr_data=train_data, carr_type=T_id, to_idList=to_ids, from_idList=from_ids:
+                                             self.__open_seats_table(dt_from, dt_to, carr_ID, carr_ord, tr_data, carr_type, to_idList, from_idList))
             self._ui.AllcarriagesForTrain_toBuy_tbl.setCellWidget(i, 3, select_seats_btn)
             self._ui.AllcarriagesForTrain_toBuy_tbl.resizeRowToContents(i)
             i += 1
@@ -262,7 +414,8 @@ class Purchase_Manager():
                         and (o.station_from_id in ({}) or o.station_to_id in({}))
                     and t.id=train_id and tt.train_id=ctt.train_id and tt.route_id=o.route_id and c.carriage_id=carriage_id and st.seat_type_id=seat_type
                     group by train_id, route_id, carriage_id, seat_type) busy
-                       from trains t
+                    from (select p.train_id from passages p where p.day_of_week = weekday(str_to_date(?,'%d.%m.%Y'))) p 
+                    inner join trains t on t.id = p.train_id
                     left join (select route_id, train_id FROM timetable tt group by train_id, route_id) tt on tt.train_id = t.id
                     left join routes r on tt.route_id = r.route_id
                     left join carriages_to_train ctt on t.id = ctt.train_id
@@ -270,18 +423,20 @@ class Purchase_Manager():
                     left join carriage_types ct on ct.id = c.carriage_type
                     left join seats s on s.carriage_type = ct.id
                     left join seat_types st on s.seat_type = st.seat_type_id
-                    group by t.id, c.carriage_id, s.carriage_type, s.seat_type, tt.route_id;""".format(from_ids, to_ids)
+                    group by t.id, c.carriage_id, s.carriage_type, s.seat_type, tt.route_id
+                    order by t.id;""".format(from_ids,to_ids)
 
-            res2 = cursor.execute(query2, selected_date).fetchall()
+            res2 = cursor.execute(query2, selected_date, selected_date).fetchall()
             output_table = PrettyTable()
-            output_table.field_names = ["Train_ID", "Train_num", "Route_ID", "Route_nm", "Carr_ID", "Carr_name", "Carr_ordnum",
+            output_table.field_names = ["Train_ID", "Train_num", "Route_ID", "Route_nm", "Carr_ID", "Carr_name",
+                                        "Carr_ordnum",
                                         "CarrT_ID", "CarrT_name", "SeatT_ID", "SeatT_name", "Total_seats", "Buzy_seats"]
             output_table.add_rows(res2)
             parse_tr_ID, parse_carr_ID, parse_sT_ID = None, None, None
             parse_carr, parse_train = None, None
             all_trains = []
             for train_ID, train_name, route_ID, route_nm, carr_ID, carr_name, carr_ordnum, carrT_ID, carrT_name, \
-                                                    seatT_ID, seatT_name, total_seats, busy_seats in res2:
+                seatT_ID, seatT_name, total_seats, busy_seats in res2:
                 # if parse_tr_ID is None or parse_carr_ID is None or parse_sT_ID is None:
                 #     parse_tr_ID = train_ID
                 #     parse_carr_ID = carr_ID
@@ -305,9 +460,9 @@ class Purchase_Manager():
 
         if mng.is_ok:
             self._ui.AllRoutesForBuy_tbl.setRowCount(0)
-            self._ui.AllRoutesForBuy_tbl.setColumnCount(6)
+            self._ui.AllRoutesForBuy_tbl.setColumnCount(7)
             self._ui.AllRoutesForBuy_tbl.setHorizontalHeaderLabels([
-                "Поезд №", "Отправление", "Время в пути", "Прибытие", "Свободно", ""])
+                "Поезд №", "Отправление", "Время в пути", "Прибытие", "Стоимость", "Свободно", ""])
             header = self._ui.AllRoutesForBuy_tbl.horizontalHeader()
             header.setSectionResizeMode(QHeaderView.Stretch)
             header.setCascadingSectionResizes(True)
@@ -318,8 +473,9 @@ class Purchase_Manager():
             header.setStretchLastSection(False)
 
             carrs_info = PrettyTable()
-            carrs_info.field_names = ["Carr_number","Free Seats"]
+            carrs_info.field_names = ["Carr_number", "Free Seats"]
             i = 0
+            prices = {}  # key = train_id
             for train in all_trains:
                 tr_id = train.train_id
                 tr_nm = train.train_name
@@ -327,11 +483,12 @@ class Purchase_Manager():
 
                 mng = MysqlConMen(self._db_cursor, self._ui)
                 with mng as cursor:
-                    stations = cursor.execute("""SELECT station_id, arrival_time, minutes_to_next_station FROM timetable
-                                        WHERE route_id = ? and train_id = ?
-                                        ORDER BY time_table_id""", r_id, tr_id).fetchall()
-
-
+                    stations = cursor.execute("""SELECT tt.station_id, arrival_time, delay, minutes_to_next_station, price_coeff FROM timetable tt
+                                        INNER JOIN stations_to_routes str on tt.route_id = str.route_id and tt.station_id = str.station_id
+                                        WHERE tt.route_id = ? and train_id = ?
+                                        ORDER BY str.sort_order""", r_id, tr_id).fetchall()
+                    tariff = float(
+                        cursor.execute("""SELECT r.tariff FROM routes r WHERE r.route_id = ?""", r_id).fetchone()[0])
 
                 if mng.is_ok:
                     minutes = 0
@@ -339,7 +496,10 @@ class Purchase_Manager():
                     dep_datetime_disp = None
                     arr_datetime_disp = None
                     f_ok, l_ok = False, False
-                    for st_id, arr_time, min_to_next_st in stations:
+                    price = 0
+                    st_cnt = 0
+                    mid_coeff = 0
+                    for st_id, arr_time, delay, min_to_next_st, price_coeff in stations:
                         if st_id == self._station_from_id:
                             f_ok = True
                             started = True
@@ -348,14 +508,23 @@ class Purchase_Manager():
                             dep_datetime_disp = datetime(py_date.year, py_date.month, py_date.day,
                                                          h, m)
                         if started and st_id != self._station_to_id:
-                            minutes += min_to_next_st
+                            if st_id != self._station_from_id:
+                                minutes += delay
+                            minutes += min_to_next_st  # 1
+                            price += price_coeff * tariff
+                            mid_coeff += price_coeff  # 2
+                            st_cnt += 1
+
                         if st_id == self._station_to_id and started:
                             l_ok = True
                             # h, m = arr_time.hour, arr_time.minute
                             arr_datetime_disp = dep_datetime_disp + timedelta(minutes=minutes)
+                            # prices[tr_id] = price
                             break
                     if not f_ok or not l_ok:
-                        break
+                        continue
+                    # if st_cnt != 0:
+                        # price = round(mid_coeff / st_cnt * tariff)
                     self._ui.AllRoutesForBuy_tbl.insertRow(i)
                     days = (minutes // 1440)
                     hours = (minutes % 1440) // 60
@@ -378,8 +547,17 @@ class Purchase_Manager():
                                          ~QtCore.Qt.ItemIsEditable)
                     self._ui.AllRoutesForBuy_tbl.setItem(i, 3, datetime_to)
 
+                    prices_range = QTextEdit(self._ui)
+                    prices_range.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+                    prices_range.setDocument(QTextDocument(str(price), self._ui))
+                    h = prices_range.document().size().height() + 3
+                    prices_range.setFixedHeight(int(h))
+                    prices_range.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+                    prices_range.setReadOnly(True)
+                    self._ui.AllRoutesForBuy_tbl.setCellWidget(i, 4, prices_range)
+
                 carr_typenames = {}
-                info_by_carrtype = {}   # key = carr_type; data = [name, free_seats]
+                info_by_carrtype = {}  # key = carr_type; data = [name, free_seats]
                 for carr_ord in train.carriges:
                     carriage = train.carriges[carr_ord]
                     T_id, T_name = carriage.type_id, carriage.type_name
@@ -390,13 +568,14 @@ class Purchase_Manager():
                             info_by_carrtype[T_id] += (total_seat - busy_seats)
                         else:
                             info_by_carrtype[T_id] = (total_seat - busy_seats)
+
                 free_seats = ",\n"
                 free_seats = free_seats.join(
-                   ["{} : {}".format(carr_typenames[carr_typeID], info_by_carrtype[carr_typeID])
-                        for carr_typeID in info_by_carrtype.keys()]
+                    ["{} : {}".format(carr_typenames[carr_typeID], info_by_carrtype[carr_typeID])
+                     for carr_typeID in info_by_carrtype.keys()]
                 )
                 carrs_info.add_row([str(tr_nm), free_seats])
-                #----------------------
+                # ----------------------
 
                 train_name = QTableWidgetItem(str(tr_nm))
                 train_name.setFlags((train_name.flags() | QtCore.Qt.CustomizeWindowHint) &
@@ -405,25 +584,25 @@ class Purchase_Manager():
 
                 free_seats_disp = QTextEdit(self._ui)
                 free_seats_disp.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-                free_seats_disp.setDocument(QTextDocument(free_seats,   self._ui))
+                free_seats_disp.setDocument(QTextDocument(free_seats, self._ui))
                 h = free_seats_disp.document().size().height() + 3
                 free_seats_disp.setFixedHeight(int(h))
                 free_seats_disp.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
                 free_seats_disp.setReadOnly(True)
                 # free_seats_disp.setFlags((free_seats_disp.flags() | QtCore.Qt.CustomizeWindowHint) &
                 #                     ~QtCore.Qt.ItemIsEditable)
-                self._ui.AllRoutesForBuy_tbl.setCellWidget(i, 4, free_seats_disp)
+                self._ui.AllRoutesForBuy_tbl.setCellWidget(i, 5, free_seats_disp)
 
                 select_seats_btn = QPushButton(text="Выбрать вагон", parent=self._ui)
                 select_seats_btn.clicked.connect(lambda state, train_data=train, dt_from=dep_datetime_disp,
-                            dt_to=arr_datetime_disp: self.__open_carriages_table(train_data, dt_from, dt_to))
-                self._ui.AllRoutesForBuy_tbl.setCellWidget(i, 5, select_seats_btn)
+                                                        dt_to=arr_datetime_disp,to_idList=to_ids, from_idList=from_ids:
+                                                 self.__open_carriages_table(train_data,dt_from,dt_to, to_idList, from_idList))
+                self._ui.AllRoutesForBuy_tbl.setCellWidget(i, 6, select_seats_btn)
                 self._ui.AllRoutesForBuy_tbl.resizeRowToContents(i)
 
                 # self._ui.AllcarriagesForTrain_toBuy_tbl
                 i += 1
             print(carrs_info)
-
 
     # def update_trains_table(self):
     #     trains = self.get_all_trains()
