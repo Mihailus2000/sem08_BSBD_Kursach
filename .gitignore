@@ -10,3 +10,6 @@ ddd.py
 *.mwb*
 *.sql
 
+*.pdf
+*.doc*
+*.pptx

@@ -392,7 +392,7 @@ class EditTimetableDialog(QDialog):
         self.passage_stations_tbl.setRowCount(0)
         self.passage_stations_tbl.setColumnCount(6)
         self.passage_stations_tbl.setHorizontalHeaderLabels([
-            "Станция", "Время отправления", "Стоянка", "Минут до след. станции", "Ценовой коэффициент",  "Используется"])
+            "Станция", "Время отправления", "Стоянка", "Время в пути", "Ценовой коэффициент",  "Используется"])
         header = self.passage_stations_tbl.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
         header.setCascadingSectionResizes(True)
